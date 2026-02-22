@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cult-data"
+version = "0.1.0"
+description = "Curriculum language model training data generation pipeline"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.0",
+    "datasketch>=1.6",
+    "tqdm",
+]
+
+[project.scripts]
+cult-generate = "generation.generate:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["generation*"]
+
+[tool.setuptools.package-data]
+"generation.vocab" = ["*.txt"]
