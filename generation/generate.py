@@ -1,7 +1,8 @@
 """Phase 1 story generation script.
 
 Generates simple stories via a vLLM-served model (OpenAI-compatible API),
-applies rule-based filters, and saves results to JSONL files.
+applies rule-based filters, and saves results to an isolated experiment
+directory with full configuration and summary metadata.
 
 Usage::
 
@@ -12,7 +13,16 @@ Usage::
         --count 1000 \\
         --batch-size 50 \\
         --output-dir data/generation/phase1/ \\
-        --seed 42
+        --seed 42 \\
+        --name baseline
+
+Each run creates::
+
+    {output-dir}/{run-id}/
+        config.json     # all arguments + timestamps
+        accepted.jsonl  # stories that passed all filters
+        rejected.jsonl  # stories that failed, with rejection_reasons
+        summary.json    # final stats written at completion
 """
 
 from __future__ import annotations
@@ -22,9 +32,9 @@ import asyncio
 import json
 import logging
 import random
+import re
 import sys
 import time
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -48,15 +58,104 @@ _RETRY_BASE_DELAY = 1.0  # seconds
 
 
 # ---------------------------------------------------------------------------
-# Generation helpers
+# Run ID and experiment directory
 # ---------------------------------------------------------------------------
 
 
-def _make_run_id() -> str:
-    """Generate a unique run identifier."""
-    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d-%H%M%S")
-    short_uuid = str(uuid.uuid4())[:8]
-    return f"gen-{ts}-{short_uuid}"
+def _slugify(value: str) -> str:
+    """Convert an arbitrary string to a filesystem-safe slug."""
+    value = value.strip()
+    value = re.sub(r"[/\\: ]+", "-", value)
+    value = re.sub(r"[^\w\-]", "", value)
+    return value.strip("-")[:40]
+
+
+def _make_run_id(model: str, seed: int, name: str | None) -> str:
+    """Generate a descriptive, unique run identifier.
+
+    Format: ``{timestamp}_{model-slug}_s{seed}[_{name}]``
+    Example: ``20250222T103045_llama-70b_s42_baseline``
+    """
+    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%S")
+    model_slug = _slugify(model)
+    run_id = f"{ts}_{model_slug}_s{seed}"
+    if name:
+        run_id = f"{run_id}_{_slugify(name)}"
+    return run_id
+
+
+def _experiment_dir(base: Path, run_id: str) -> Path:
+    """Return (and create) the isolated directory for this run."""
+    d = base / run_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+# ---------------------------------------------------------------------------
+# Config / summary helpers
+# ---------------------------------------------------------------------------
+
+
+def _write_config(
+    exp_dir: Path,
+    run_id: str,
+    started_at: str,
+    phase: int,
+    model: str,
+    api_base: str,
+    count: int,
+    batch_size: int,
+    seed: int,
+    temperature: float,
+    max_tokens: int,
+    name: str | None,
+) -> None:
+    config: dict[str, Any] = {
+        "run_id": run_id,
+        "started_at": started_at,
+        "phase": phase,
+        "model": model,
+        "api_base": api_base,
+        "count": count,
+        "batch_size": batch_size,
+        "seed": seed,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "prompt_template_version": PROMPT_TEMPLATE_VERSION,
+    }
+    if name:
+        config["name"] = name
+    (exp_dir / "config.json").write_text(
+        json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+
+
+def _write_summary(
+    exp_dir: Path,
+    run_id: str,
+    stats: FilterStats,
+    elapsed_s: float,
+) -> None:
+    summary: dict[str, Any] = {
+        "run_id": run_id,
+        "completed_at": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
+        "elapsed_s": round(elapsed_s, 2),
+        "accepted": stats.passed,
+        "rejected": stats.rejected,
+        "total_generated": stats.total,
+        "pass_rate": round(stats.pass_rate, 4),
+        "filter_breakdown": dict(
+            sorted(stats.failures.items(), key=lambda kv: -kv[1])
+        ),
+    }
+    (exp_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Generation helpers
+# ---------------------------------------------------------------------------
 
 
 def _story_record(
@@ -142,7 +241,6 @@ async def _generate_one(
     content = await _call_api_with_retry(client, model, prompt, temperature, max_tokens)
 
     if content is None:
-        # API failure — record as rejected with a special reason.
         rejected = _story_record(
             content="",
             phase=phase,
@@ -159,8 +257,7 @@ async def _generate_one(
 
     if passed:
         if minhash_index is not None:
-            story_id = f"{run_id}-{story_index}"
-            add_to_minhash_index(content, story_id, minhash_index)
+            add_to_minhash_index(content, f"{run_id}-{story_index}", minhash_index)
         accepted = _story_record(
             content=content,
             phase=phase,
@@ -201,8 +298,13 @@ async def run_generation(
     seed: int,
     temperature: float,
     max_tokens: int,
+    name: str | None = None,
 ) -> None:
     """Run the full generation pipeline.
+
+    Each invocation creates an isolated experiment directory under
+    ``output_dir`` containing ``config.json``, ``accepted.jsonl``,
+    ``rejected.jsonl``, and ``summary.json``.
 
     Args:
         phase: Curriculum phase number.
@@ -211,26 +313,42 @@ async def run_generation(
         api_key: API key (use "EMPTY" for local vLLM servers).
         count: Target number of *accepted* stories to generate.
         batch_size: Number of concurrent API calls per batch.
-        output_dir: Directory to write JSONL output files.
+        output_dir: Root directory; each run gets its own subdirectory.
         seed: Random seed for reproducibility.
         temperature: Sampling temperature.
         max_tokens: Maximum tokens per generation.
+        name: Optional human-readable experiment label included in the run ID
+            and config (e.g. "baseline", "temp-09", "llama-vs-mistral").
     """
     rng = random.Random(seed)
-    run_id = _make_run_id()
+    started_at = datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    run_id = _make_run_id(model, seed, name)
 
     vocab = load_vocab(phase)
     minhash_index = create_minhash_index()
     stats = FilterStats()
 
-    # Prepare output paths.
-    output_dir = Path(output_dir)
-    rejected_dir = output_dir / "rejected"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    rejected_dir.mkdir(parents=True, exist_ok=True)
+    # One subdirectory per run — fully isolated.
+    exp_dir = _experiment_dir(Path(output_dir), run_id)
+    accepted_path = exp_dir / "accepted.jsonl"
+    rejected_path = exp_dir / "rejected.jsonl"
 
-    accepted_path = output_dir / f"{run_id}.jsonl"
-    rejected_path = rejected_dir / f"{run_id}.jsonl"
+    _write_config(
+        exp_dir=exp_dir,
+        run_id=run_id,
+        started_at=started_at,
+        phase=phase,
+        model=model,
+        api_base=api_base,
+        count=count,
+        batch_size=batch_size,
+        seed=seed,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        name=name,
+    )
+    logger.info("Experiment dir: %s", exp_dir)
+    logger.info("Starting run %s | target=%d | model=%s | phase=%d", run_id, count, model, phase)
 
     client = AsyncOpenAI(api_key=api_key, base_url=api_base)
 
@@ -239,16 +357,14 @@ async def run_generation(
     story_index = 0
     start_time = time.monotonic()
 
-    logger.info("Starting run %s | target=%d | model=%s | phase=%d", run_id, count, model, phase)
-
     with accepted_path.open("w", encoding="utf-8") as acc_f, rejected_path.open(
         "w", encoding="utf-8"
     ) as rej_f:
 
         while accepted_count < count:
-            # How many we still need.
             remaining = count - accepted_count
-            current_batch = min(batch_size, remaining * 3)  # Oversample to account for rejections.
+            # Oversample by 3× to absorb expected rejections without extra round-trips.
+            current_batch = min(batch_size, remaining * 3)
 
             tasks = [
                 _generate_one(
@@ -295,10 +411,15 @@ async def run_generation(
 
     print()  # Newline after progress line.
     elapsed = time.monotonic() - start_time
+    _write_summary(exp_dir, run_id, stats, elapsed)
+
     logger.info("Run %s complete in %.1fs", run_id, elapsed)
     print(stats.summary())
-    print(f"Accepted stories: {accepted_path}")
-    print(f"Rejected stories: {rejected_path}")
+    print(f"\nExperiment: {exp_dir}")
+    print(f"  accepted.jsonl  ({stats.passed} stories)")
+    print(f"  rejected.jsonl  ({stats.rejected} stories)")
+    print(f"  config.json")
+    print(f"  summary.json")
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +430,10 @@ async def run_generation(
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="generation.generate",
-        description="Phase 1 story generation pipeline.",
+        description=(
+            "Phase 1 story generation pipeline. "
+            "Each run creates an isolated experiment directory."
+        ),
     )
     parser.add_argument("--phase", type=int, default=1, help="Curriculum phase (default: 1)")
     parser.add_argument("--model", required=True, help="Model name as served by vLLM")
@@ -338,7 +462,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         default="data/generation/phase1",
-        help="Output directory for JSONL files (default: data/generation/phase1)",
+        help="Root output directory; each run gets its own subdirectory (default: data/generation/phase1)",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
     parser.add_argument(
@@ -352,6 +476,14 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=_DEFAULT_MAX_TOKENS,
         help=f"Max tokens per generation (default: {_DEFAULT_MAX_TOKENS})",
+    )
+    parser.add_argument(
+        "--name",
+        default=None,
+        help=(
+            "Optional experiment label appended to the run ID "
+            "(e.g. 'baseline', 'temp-09'). Useful for comparing runs."
+        ),
     )
     parser.add_argument(
         "--log-level",
@@ -384,6 +516,7 @@ def main() -> None:
             seed=args.seed,
             temperature=args.temperature,
             max_tokens=args.max_tokens,
+            name=args.name,
         )
     )
 

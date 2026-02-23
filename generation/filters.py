@@ -26,12 +26,6 @@ except ImportError:
 _MIN_WORDS = 150
 _MAX_WORDS = 250
 
-# First-person pronouns that must not appear as standalone words.
-_FIRST_PERSON_PATTERN = re.compile(
-    r"\b(I|me|my|mine|myself)\b",
-    re.UNICODE,
-)
-
 # Structural markers / placeholders that should not appear in clean output.
 _MARKER_PATTERNS = [
     re.compile(r"\["),
@@ -45,7 +39,9 @@ _MARKER_PATTERNS = [
 ]
 
 # Quotation mark characters that indicate dialogue.
-_QUOTE_CHARS = set('""\u201c\u201d\u2018\u2019')
+# Single curly quotes (\u2018, \u2019) are intentionally excluded — they also
+# appear in contractions (it's, didn't) and possessives (dog's).
+_QUOTE_CHARS = {'"', '\u201c', '\u201d'}  # straight " and curly " "
 
 # Dialogue verbs — when these appear before a comma or period and are
 # immediately followed (within the same sentence) by a capital letter word,
@@ -129,14 +125,6 @@ def check_no_dialogue(text: str) -> tuple[bool, Optional[str]]:
     if _DIALOGUE_VERB_PATTERN.search(text):
         return False, "dialogue:attribution_pattern"
 
-    return True, None
-
-
-def check_no_first_person(text: str) -> tuple[bool, Optional[str]]:
-    """Reject if first-person pronouns appear as standalone words."""
-    match = _FIRST_PERSON_PATTERN.search(text)
-    if match:
-        return False, f"first_person:{match.group()!r}"
     return True, None
 
 
@@ -238,7 +226,6 @@ def run_all_filters(
         check_word_count(text),
         check_triplet_words(text, triplet),
         check_no_dialogue(text),
-        check_no_first_person(text),
         check_no_markers(text),
         check_near_duplicate(text, minhash_index),
     ]
