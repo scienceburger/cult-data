@@ -38,6 +38,8 @@ Rules:
 - Keep the story between 150 and 250 words
 - Use past tense
 - Do not include a title, headers, markers, or placeholders
+- Do not use any markdown formatting — no asterisks, bold, or italics
+- Do not write "The End" or any closing phrase
 
 Write only the story, with no title or commentary.\
 """

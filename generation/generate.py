@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any
 
 from openai import AsyncOpenAI
+from tqdm import tqdm
 
 from .filters import FilterStats, add_to_minhash_index, create_minhash_index, run_all_filters
 from .prompts.phase1 import PROMPT_TEMPLATE_VERSION, build_prompt, random_feature
@@ -135,14 +136,18 @@ def _write_summary(
     run_id: str,
     stats: FilterStats,
     elapsed_s: float,
+    total_tokens: int,
 ) -> None:
     summary: dict[str, Any] = {
         "run_id": run_id,
         "completed_at": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
         "elapsed_s": round(elapsed_s, 2),
+        "throughput_stories_per_s": round(stats.total / elapsed_s, 2) if elapsed_s > 0 else 0.0,
+        "throughput_tokens_per_s": round(total_tokens / elapsed_s, 2) if elapsed_s > 0 else 0.0,
         "accepted": stats.passed,
         "rejected": stats.rejected,
         "total_generated": stats.total,
+        "total_tokens": total_tokens,
         "pass_rate": round(stats.pass_rate, 4),
         "filter_breakdown": dict(
             sorted(stats.failures.items(), key=lambda kv: -kv[1])
@@ -191,10 +196,10 @@ async def _call_api_with_retry(
     prompt: str,
     temperature: float,
     max_tokens: int,
-) -> str | None:
+) -> tuple[str | None, int]:
     """Call the API with exponential-backoff retry on failure.
 
-    Returns the generated text, or ``None`` if all retries failed.
+    Returns ``(text, completion_tokens)``; text is ``None`` if all retries failed.
     """
     delay = _RETRY_BASE_DELAY
     for attempt in range(1, _MAX_API_RETRIES + 1):
@@ -206,15 +211,20 @@ async def _call_api_with_retry(
                 max_tokens=max_tokens,
             )
             content = response.choices[0].message.content
-            return content.strip() if content else None
+            text = content.strip() if content else None
+            if response.usage and response.usage.completion_tokens:
+                tokens = response.usage.completion_tokens
+            else:
+                tokens = len(text.split()) if text else 0
+            return text, tokens
         except Exception as exc:  # noqa: BLE001
             if attempt == _MAX_API_RETRIES:
                 logger.warning("API call failed after %d retries: %s", _MAX_API_RETRIES, exc)
-                return None
+                return None, 0
             logger.debug("API call attempt %d failed (%s); retrying in %.1fs", attempt, exc, delay)
             await asyncio.sleep(delay)
             delay *= 2
-    return None
+    return None, 0
 
 
 async def _generate_one(
@@ -228,17 +238,18 @@ async def _generate_one(
     minhash_index: Any | None,
     rng: random.Random,
     story_index: int,
-) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int]:
     """Generate and filter one story.
 
     Returns:
-        ``(accepted_record, rejected_record)`` — exactly one will be non-None.
+        ``(accepted_record, rejected_record, completion_tokens)`` — exactly one
+        of the records will be non-None.
     """
     triplet = sample_triplet(vocab=vocab, phase=phase, rng=rng)
     feature = random_feature(rng=rng)
     prompt = build_prompt(triplet, feature)
 
-    content = await _call_api_with_retry(client, model, prompt, temperature, max_tokens)
+    content, tokens = await _call_api_with_retry(client, model, prompt, temperature, max_tokens)
 
     if content is None:
         rejected = _story_record(
@@ -251,7 +262,7 @@ async def _generate_one(
             filters_passed=False,
             rejection_reasons=["api_failure"],
         )
-        return None, rejected
+        return None, rejected, tokens
 
     passed, reasons = run_all_filters(content, triplet, minhash_index)
 
@@ -267,7 +278,7 @@ async def _generate_one(
             run_id=run_id,
             filters_passed=True,
         )
-        return accepted, None
+        return accepted, None, tokens
     else:
         rejected = _story_record(
             content=content,
@@ -279,7 +290,7 @@ async def _generate_one(
             filters_passed=False,
             rejection_reasons=reasons,
         )
-        return None, rejected
+        return None, rejected, tokens
 
 
 # ---------------------------------------------------------------------------
@@ -354,13 +365,15 @@ async def run_generation(
 
     accepted_count = 0
     total_generated = 0
+    total_tokens = 0
     story_index = 0
     start_time = time.monotonic()
 
-    with accepted_path.open("w", encoding="utf-8") as acc_f, rejected_path.open(
-        "w", encoding="utf-8"
-    ) as rej_f:
-
+    with (
+        accepted_path.open("w", encoding="utf-8") as acc_f,
+        rejected_path.open("w", encoding="utf-8") as rej_f,
+        tqdm(total=count, unit="story", desc=run_id, dynamic_ncols=True) as bar,
+    ):
         while accepted_count < count:
             remaining = count - accepted_count
             # Oversample by 3× to absorb expected rejections without extra round-trips.
@@ -385,33 +398,31 @@ async def run_generation(
 
             results = await asyncio.gather(*tasks)
 
-            for accepted, rejected in results:
+            for accepted, rejected, tokens in results:
                 total_generated += 1
+                total_tokens += tokens
                 if accepted is not None:
                     acc_f.write(json.dumps(accepted, ensure_ascii=False) + "\n")
                     accepted_count += 1
                     stats.record(True, [])
+                    bar.update(1)
                 else:
                     assert rejected is not None
                     rej_f.write(json.dumps(rejected, ensure_ascii=False) + "\n")
                     stats.record(False, rejected.get("rejection_reasons", []))
 
             elapsed = time.monotonic() - start_time
-            rate = total_generated / elapsed if elapsed > 0 else 0.0
-            print(
-                f"\r[{run_id}] accepted={accepted_count}/{count} "
-                f"rejected={stats.rejected} total={total_generated} "
-                f"pass_rate={stats.pass_rate:.1%} rate={rate:.1f}/s",
-                end="",
-                flush=True,
+            bar.set_postfix(
+                stories_s=f"{total_generated / elapsed:.1f}" if elapsed > 0 else "0.0",
+                tok_s=f"{total_tokens / elapsed:.0f}" if elapsed > 0 else "0",
+                pass_rate=f"{stats.pass_rate:.1%}",
+                rejected=stats.rejected,
             )
 
             if accepted_count >= count:
                 break
-
-    print()  # Newline after progress line.
     elapsed = time.monotonic() - start_time
-    _write_summary(exp_dir, run_id, stats, elapsed)
+    _write_summary(exp_dir, run_id, stats, elapsed, total_tokens)
 
     logger.info("Run %s complete in %.1fs", run_id, elapsed)
     print(stats.summary())
@@ -503,6 +514,7 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         stream=sys.stderr,
     )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     asyncio.run(
         run_generation(
