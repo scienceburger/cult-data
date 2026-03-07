@@ -72,9 +72,26 @@ Rules:
 - Do not use markdown formatting
 - Write only the scene, nothing else\
 """,
+    "p2-scene-v2": """\
+You describe small everyday moments for young children (age 3-5).
+
+Rules:
+- Write 4-10 short sentences in simple English
+- Just describe what is happening — no story, no lesson, no dialogue
+- Use present tense
+- Vary how you connect sentences — do not always use "first, then, next, after"
+- Sometimes just describe what is there, what someone notices, or what changes
+- Start the scene in the middle of the moment, not at the beginning
+- No markdown formatting
+- Write only the scene, nothing else
+
+Setting: {scene_type}
+Weave in these facts:
+{fact_list}\
+""",
 }
 
-DEFAULT_SCENE_VERSION = "p2-scene-v1"
+DEFAULT_SCENE_VERSION = "p2-scene-v2"
 
 # ---------------------------------------------------------------------------
 # Public API

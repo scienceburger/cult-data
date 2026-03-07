@@ -323,6 +323,13 @@ def run_descriptor_filters(
 # ---------------------------------------------------------------------------
 
 
+def check_english_only(text: str) -> tuple[bool, Optional[str]]:
+    """Reject if text contains non-Latin script characters (e.g. CJK from Qwen)."""
+    if re.search(r"[^\x00-\x7F\u00C0-\u024F\u2018-\u201F\u2014\u2013\u2026]", text):
+        return False, "non_english"
+    return True, None
+
+
 def check_scene_word_count(text: str) -> tuple[bool, Optional[str]]:
     """Reject if word count is outside [40, 250] for scenes."""
     count = len(text.split())
@@ -368,6 +375,7 @@ def run_scene_filters(
 
     checks = [
         check_scene_word_count(text),
+        check_english_only(text),
         check_concept_mentions(text, nouns),
         check_no_dialogue(text),
         check_no_markers(text),
