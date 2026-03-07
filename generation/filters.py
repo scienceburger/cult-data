@@ -1,9 +1,7 @@
-"""Rule-based post-generation quality filters for Phase 1 stories.
+"""Rule-based post-generation quality filters for Phase 1 descriptors.
 
 All filters are deterministic string/regex operations — no LLM calls.
 Each filter returns ``(passed: bool, reason: str | None)``.
-``run_all_filters`` aggregates all checks and returns overall pass status
-plus a list of failure reasons.
 """
 
 from __future__ import annotations
@@ -23,14 +21,10 @@ except ImportError:
 # Constants
 # ---------------------------------------------------------------------------
 
-_MIN_WORDS = 150
-_MAX_WORDS = 250
-
-# First-person pronouns that must not appear as standalone words.
-_FIRST_PERSON_PATTERN = re.compile(
-    r"\b(I|me|my|mine|myself)\b",
-    re.UNICODE,
-)
+_DESC_MIN_WORDS = 5
+_DESC_MAX_WORDS = 60
+_SCENE_MIN_WORDS = 40
+_SCENE_MAX_WORDS = 250
 
 # Structural markers / placeholders that should not appear in clean output.
 _MARKER_PATTERNS = [
@@ -45,7 +39,9 @@ _MARKER_PATTERNS = [
 ]
 
 # Quotation mark characters that indicate dialogue.
-_QUOTE_CHARS = set('""\u201c\u201d\u2018\u2019')
+# Single curly quotes (\u2018, \u2019) are intentionally excluded — they also
+# appear in contractions (it's, didn't) and possessives (dog's).
+_QUOTE_CHARS = {'"', '\u201c', '\u201d'}  # straight " and curly " "
 
 # Dialogue verbs — when these appear before a comma or period and are
 # immediately followed (within the same sentence) by a capital letter word,
@@ -78,39 +74,26 @@ _MINHASH_SIMILARITY_THRESHOLD = 0.8
 # ---------------------------------------------------------------------------
 
 
-def check_word_count(text: str) -> tuple[bool, Optional[str]]:
-    """Reject if word count is outside [150, 250]."""
-    count = len(text.split())
-    if count < _MIN_WORDS:
-        return False, f"word_count_too_low:{count}"
-    if count > _MAX_WORDS:
-        return False, f"word_count_too_high:{count}"
-    return True, None
-
-
 def _stem_present(word: str, text_lower: str) -> bool:
     """Return True if ``word`` (or a stem of it) appears in ``text_lower``.
 
     Uses a simple prefix match: the seed word must appear as a prefix of some
     whitespace-delimited token (handles common English inflections like
     ``climb`` → ``climbed``, ``run`` → ``running``).
+
+    Also handles y→ies plurals (``butterfly`` → ``butterflies``).
     """
-    # Exact whole-word match first (fastest path).
+    # Exact prefix match first (fastest path).
     pattern = re.compile(r"\b" + re.escape(word) + r"\w*", re.IGNORECASE)
-    return bool(pattern.search(text_lower))
-
-
-def check_triplet_words(text: str, triplet: dict[str, str]) -> tuple[bool, Optional[str]]:
-    """Reject if any seed word from the triplet is absent (stem-matched)."""
-    text_lower = text.lower()
-    missing = []
-    for key in ("noun", "verb", "adj"):
-        word = triplet[key].lower()
-        if not _stem_present(word, text_lower):
-            missing.append(f"{key}={triplet[key]!r}")
-    if missing:
-        return False, "missing_triplet_words:" + ",".join(missing)
-    return True, None
+    if pattern.search(text_lower):
+        return True
+    # Handle y→ies plurals: "butterfly" should match "butterflies".
+    if word.endswith("y"):
+        stem = word[:-1]
+        pattern_ies = re.compile(r"\b" + re.escape(stem) + r"ies\b", re.IGNORECASE)
+        if pattern_ies.search(text_lower):
+            return True
+    return False
 
 
 def check_no_dialogue(text: str) -> tuple[bool, Optional[str]]:
@@ -129,14 +112,6 @@ def check_no_dialogue(text: str) -> tuple[bool, Optional[str]]:
     if _DIALOGUE_VERB_PATTERN.search(text):
         return False, "dialogue:attribution_pattern"
 
-    return True, None
-
-
-def check_no_first_person(text: str) -> tuple[bool, Optional[str]]:
-    """Reject if first-person pronouns appear as standalone words."""
-    match = _FIRST_PERSON_PATTERN.search(text)
-    if match:
-        return False, f"first_person:{match.group()!r}"
     return True, None
 
 
@@ -213,38 +188,203 @@ def create_minhash_index() -> Optional["MinHashLSH"]:  # type: ignore[name-defin
     return MinHashLSH(threshold=_MINHASH_SIMILARITY_THRESHOLD, num_perm=_MINHASH_NUM_PERM)
 
 
-# ---------------------------------------------------------------------------
-# Aggregate runner
-# ---------------------------------------------------------------------------
+def strip_markdown(text: str) -> str:
+    """Remove common markdown formatting artifacts from generated text.
+
+    Strips thinking blocks (``<think>...</think>``), bold, italic, and
+    heading markers while preserving the underlying content.
+    """
+    # Strip <think>...</think> reasoning blocks (e.g. Qwen3, DeepSeek).
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Also strip an unclosed <think> block (model hit max tokens mid-thought).
+    text = re.sub(r"<think>.*", "", text, flags=re.DOTALL)
+    text = text.strip()
+    # Bold: **word** or __word__
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"__(.+?)__", r"\1", text)
+    # Italic: *word* or _word_ (single, not inside a word)
+    text = re.sub(r"(?<!\w)\*(.+?)\*(?!\w)", r"\1", text)
+    text = re.sub(r"(?<!\w)_(.+?)_(?!\w)", r"\1", text)
+    # Heading markers
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+    return text
 
 
-def run_all_filters(
+
+# ---------------------------------------------------------------------------
+# Descriptor filters
+# ---------------------------------------------------------------------------
+
+# Narrative indicators — descriptors should NOT read like stories.
+_NARRATIVE_PATTERNS = [
+    re.compile(r"(?i)\bonce upon\b"),
+    re.compile(r"(?i)\bone day\b"),
+    re.compile(r"(?i)\bone morning\b"),
+    re.compile(r"(?i)\bone night\b"),
+    re.compile(r"(?i)\blong ago\b"),
+    re.compile(r"(?i)\bthere was\b"),
+    re.compile(r"(?i)\bthere were\b"),
+    re.compile(r"(?i)\bthere lived\b"),
+    re.compile(r"(?i)\bnamed\s+[A-Z]"),  # character names
+    re.compile(r"(?i)\bcalled\s+[A-Z]"),
+]
+
+
+def check_descriptor_word_count(text: str) -> tuple[bool, Optional[str]]:
+    """Reject if word count is outside [5, 60] for descriptors."""
+    count = len(text.split())
+    if count < _DESC_MIN_WORDS:
+        return False, f"word_count_too_low:{count}"
+    if count > _DESC_MAX_WORDS:
+        return False, f"word_count_too_high:{count}"
+    return True, None
+
+
+def check_concept_mention(text: str, noun: str) -> tuple[bool, Optional[str]]:
+    """Reject if the target noun does not appear in the text (stem-matched)."""
+    if not _stem_present(noun.lower(), text.lower()):
+        return False, f"missing_concept:{noun}"
+    return True, None
+
+
+def check_no_narrative(text: str) -> tuple[bool, Optional[str]]:
+    """Reject if the text contains story/narrative indicators."""
+    for pattern in _NARRATIVE_PATTERNS:
+        if pattern.search(text):
+            return False, f"narrative:{pattern.pattern!r}"
+    return True, None
+
+
+def check_factual_grounding(text: str, value: str) -> tuple[bool, Optional[str]]:
+    """Reject if the relation value does not appear in the text (stem-matched).
+
+    For multi-word values, checks if any significant word (>3 chars) appears.
+    """
+    text_lower = text.lower()
+    value_lower = value.lower()
+    # For short single-word values, do direct stem match.
+    words = value_lower.split()
+    if len(words) == 1:
+        if _stem_present(value_lower, text_lower):
+            return True, None
+        return False, f"missing_value:{value}"
+
+    # For multi-word values, require at least one significant word to appear.
+    significant = [w for w in words if len(w) > 3]
+    if not significant:
+        # All short words — check the full phrase via substring.
+        if value_lower in text_lower:
+            return True, None
+        return False, f"missing_value:{value}"
+
+    for word in significant:
+        if _stem_present(word, text_lower):
+            return True, None
+    return False, f"missing_value:{value}"
+
+
+def run_descriptor_filters(
     text: str,
-    triplet: dict[str, str],
+    noun: str,
+    relation: str,
+    value: str,
     minhash_index: Optional[object] = None,
-) -> tuple[bool, list[str]]:
-    """Run all filters against a story.
+) -> tuple[bool, list[str], str]:
+    """Run all filters against a descriptor.
 
     Args:
-        text: Generated story text.
-        triplet: The word triplet used to generate this story (keys: noun, verb, adj).
-        minhash_index: Optional ``MinHashLSH`` instance for near-duplicate detection.
+        text: Generated descriptor text.
+        noun: The target concept noun.
+        relation: The relation type (e.g. "IsA").
+        value: The relation value (e.g. "animal").
+        minhash_index: Optional MinHashLSH for near-duplicate detection.
 
     Returns:
-        ``(passed, reasons)`` where ``passed`` is ``True`` only if all filters
-        pass, and ``reasons`` is a list of failure reason strings (empty on pass).
+        ``(passed, reasons, cleaned_text)``
     """
+    text = strip_markdown(text)
+
     checks = [
-        check_word_count(text),
-        check_triplet_words(text, triplet),
+        check_descriptor_word_count(text),
+        check_concept_mention(text, noun),
         check_no_dialogue(text),
-        check_no_first_person(text),
         check_no_markers(text),
+        check_no_narrative(text),
+        check_factual_grounding(text, value),
         check_near_duplicate(text, minhash_index),
     ]
 
     reasons = [reason for passed, reason in checks if not passed and reason is not None]
-    return len(reasons) == 0, reasons
+    return len(reasons) == 0, reasons, text
+
+
+# ---------------------------------------------------------------------------
+# Scene filters (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+def check_english_only(text: str) -> tuple[bool, Optional[str]]:
+    """Reject if text contains non-Latin script characters (e.g. CJK from Qwen)."""
+    if re.search(r"[^\x00-\x7F\u00C0-\u024F\u2018-\u201F\u2014\u2013\u2026]", text):
+        return False, "non_english"
+    return True, None
+
+
+def check_scene_word_count(text: str) -> tuple[bool, Optional[str]]:
+    """Reject if word count is outside [40, 250] for scenes."""
+    count = len(text.split())
+    if count < _SCENE_MIN_WORDS:
+        return False, f"word_count_too_low:{count}"
+    if count > _SCENE_MAX_WORDS:
+        return False, f"word_count_too_high:{count}"
+    return True, None
+
+
+def check_concept_mentions(
+    text: str, nouns: list[str],
+) -> tuple[bool, Optional[str]]:
+    """Reject if fewer than half of the target nouns appear in the text."""
+    text_lower = text.lower()
+    found = sum(1 for noun in nouns if _stem_present(noun.lower(), text_lower))
+    # Require at least half of the target nouns (rounded up).
+    required = (len(nouns) + 1) // 2
+    if found < required:
+        missing = [n for n in nouns if not _stem_present(n.lower(), text_lower)]
+        return False, f"missing_concepts:{','.join(missing)}"
+    return True, None
+
+
+def run_scene_filters(
+    text: str,
+    concept_pairs: list[tuple[str, str, str]],
+    minhash_index: Optional[object] = None,
+) -> tuple[bool, list[str], str]:
+    """Run all filters against a Phase 2 everyday scene.
+
+    Args:
+        text: Generated scene text.
+        concept_pairs: List of (noun, relation, value) triples targeted.
+        minhash_index: Optional MinHashLSH for near-duplicate detection.
+
+    Returns:
+        ``(passed, reasons, cleaned_text)``
+    """
+    text = strip_markdown(text)
+
+    nouns = list({noun for noun, _, _ in concept_pairs})
+
+    checks = [
+        check_scene_word_count(text),
+        check_english_only(text),
+        check_concept_mentions(text, nouns),
+        check_no_dialogue(text),
+        check_no_markers(text),
+        check_no_narrative(text),
+        check_near_duplicate(text, minhash_index),
+    ]
+
+    reasons = [reason for passed, reason in checks if not passed and reason is not None]
+    return len(reasons) == 0, reasons, text
 
 
 # ---------------------------------------------------------------------------
@@ -263,11 +403,11 @@ class FilterStats:
     failures: dict[str, int] = field(default_factory=dict)
 
     def record(self, passed: bool, reasons: list[str]) -> None:
-        """Record the result of ``run_all_filters`` for one story.
+        """Record the result of filtering one descriptor.
 
         Args:
-            passed: Whether the story passed all filters.
-            reasons: List of failure reason strings from ``run_all_filters``.
+            passed: Whether the descriptor passed all filters.
+            reasons: List of failure reason strings from ``run_descriptor_filters``.
         """
         self.total += 1
         if passed:

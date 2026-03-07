@@ -1,90 +1,131 @@
-"""Phase 1 prompt template and narrative feature definitions."""
+"""Phase 1 prompt templates for descriptor generation.
+
+Generates factual sentences about concept × relation triples for young children.
+"""
 
 from __future__ import annotations
 
-import random
-
 # ---------------------------------------------------------------------------
-# Narrative features
+# Relation verb mappings — converts relation keys to natural language
 # ---------------------------------------------------------------------------
 
-NARRATIVE_FEATURES: dict[str, str] = {
-    "plot_twist": "an unexpected turn of events that surprises the reader",
-    "moral": "a clear lesson or moral that the main character learns",
-    "foreshadowing": "hints early in the story about what will happen later",
-    "bad_ending": "an ending where things don't work out well for the main character",
-    "conflict": "a conflict or disagreement between two characters that drives the story",
+RELATION_VERBS: dict[str, str] = {
+    "IsA": "is a",
+    "Does": "",  # value is already a verb phrase
+    "Has": "has",
+    "Likes": "likes",
+    "AtLocation": "can be found at",
+    "Sound": "makes the sound",
+    "Size": "is",
+    "Color": "can be",
+    "Taste": "tastes",
+    "Shape": "is shaped like a",
 }
 
-# Keep a stable ordered list for reproducible random selection.
-_FEATURE_KEYS: list[str] = list(NARRATIVE_FEATURES.keys())
-
 # ---------------------------------------------------------------------------
-# Prompt template
+# Descriptor prompt templates
 # ---------------------------------------------------------------------------
 
-_TEMPLATE = """\
-Write a short story for young children (ages 3-5).
+_DESCRIPTOR_TEMPLATES: dict[str, str] = {
+    "p1-desc-v1": """\
+Write simple factual sentences about the following concept for young children (ages 3-5).
 
-The story must include these three words: {noun}, {verb}, {adjective}.
-
-The story should feature: {narrative_feature_description}.
+Concept: {noun}
+Fact: {fact_sentence}
 
 Rules:
-- Use simple words that a young child would understand
-- Write in third person (he, she, they — not "I")
-- Do not include any dialogue or quoted speech
-- Use complete sentences with correct grammar
-- Keep the story between 150 and 250 words
-- Use past tense
-- Do not include a title, headers, markers, or placeholders
+- Write 1-3 short, simple sentences stating this fact
+- Use simple words a young child would understand
+- Do not use any narrative or storytelling
+- Do not include dialogue
+- Use present tense for general facts
+- Vary sentence structure (don't always start with "A {noun}...")
+- Do not use markdown formatting
+- Write only the sentences, nothing else\
+""",
+    "p1-desc-v2": """\
+Write simple factual sentences about the following concept for young children (ages 3-5).
 
-Write only the story, with no title or commentary.\
-"""
+Concept: {noun}
+Fact: {fact_sentence}
 
-PROMPT_TEMPLATE_VERSION = "p1-v1"
+Rules:
+- Write 1-3 short, simple sentences stating this fact
+- Use simple words a young child would understand
+- Do not use any narrative or storytelling
+- Do not include dialogue or quoted speech
+- Use present tense
+- Try different ways to start your sentences
+- Do not use markdown formatting — no asterisks, bold, or italics
+- Do not include headers, titles, or labels
+- Write only the sentences, nothing else\
+""",
+    "p1-desc-v3": """\
+Tell a young child (age 3-5) a simple fact.
+
+Concept: {noun}
+Fact: {fact_sentence}
+
+Write 1-3 short sentences about this fact. Use simple words. Do not tell a story. Do not use dialogue. Use present tense. No markdown. Write only the sentences.\
+""",
+}
+
+DEFAULT_DESCRIPTOR_VERSION = "p1-desc-v1"
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 
-def random_feature(rng: random.Random | None = None) -> str:
-    """Return a randomly selected narrative feature key (uniform distribution).
+def relation_to_sentence(noun: str, relation: str, value: str) -> str:
+    """Convert a (noun, relation, value) triple into a natural-language fact sentence.
 
-    Args:
-        rng: Optional ``random.Random`` instance for reproducibility.
-
-    Returns:
-        One of the keys from ``NARRATIVE_FEATURES``.
+    Examples:
+        >>> relation_to_sentence("dog", "IsA", "animal")
+        'A dog is a animal'
+        >>> relation_to_sentence("dog", "Does", "bark")
+        'A dog barks'
+        >>> relation_to_sentence("dog", "Has", "four legs")
+        'A dog has four legs'
     """
-    _rng = rng or random
-    return _rng.choice(_FEATURE_KEYS)
+    verb = RELATION_VERBS.get(relation, relation.lower())
+    if relation == "Does":
+        return f"A {noun} {value}"
+    return f"A {noun} {verb} {value}"
 
 
-def build_prompt(triplet: dict[str, str], feature: str) -> str:
-    """Fill the Phase 1 prompt template with a word triplet and narrative feature.
-
-    Args:
-        triplet: Dict with keys ``"noun"``, ``"verb"``, ``"adj"``.
-        feature: A key from ``NARRATIVE_FEATURES``.
-
-    Returns:
-        The fully formatted prompt string ready to send to the model.
+def get_descriptor_template(version: str | None = None) -> tuple[str, str]:
+    """Return (template_string, version) for a descriptor prompt.
 
     Raises:
-        KeyError: If ``feature`` is not a valid narrative feature key.
-        KeyError: If ``triplet`` is missing required keys.
+        KeyError: If the version is unknown.
     """
-    if feature not in NARRATIVE_FEATURES:
+    v = version or DEFAULT_DESCRIPTOR_VERSION
+    if v not in _DESCRIPTOR_TEMPLATES:
         raise KeyError(
-            f"Unknown narrative feature: {feature!r}. "
-            f"Valid features: {list(NARRATIVE_FEATURES)}"
+            f"Unknown descriptor prompt version: {v!r}. "
+            f"Valid versions: {list(_DESCRIPTOR_TEMPLATES)}"
         )
+    return _DESCRIPTOR_TEMPLATES[v], v
 
-    return _TEMPLATE.format(
-        noun=triplet["noun"],
-        verb=triplet["verb"],
-        adjective=triplet["adj"],
-        narrative_feature_description=NARRATIVE_FEATURES[feature],
-    )
+
+def build_descriptor_prompt(
+    noun: str,
+    relation: str,
+    value: str,
+    version: str | None = None,
+) -> str:
+    """Build a descriptor prompt from a (noun, relation, value) triple.
+
+    Args:
+        noun: The target concept (e.g. "dog").
+        relation: The relation type (e.g. "IsA", "Has", "Does").
+        value: The relation value (e.g. "animal", "four legs", "bark").
+        version: Prompt template version. Defaults to DEFAULT_DESCRIPTOR_VERSION.
+
+    Returns:
+        The fully formatted prompt string.
+    """
+    template, _ = get_descriptor_template(version)
+    fact_sentence = relation_to_sentence(noun, relation, value)
+    return template.format(noun=noun, fact_sentence=fact_sentence)
