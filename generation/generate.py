@@ -1,27 +1,28 @@
-"""Phase 1 story generation script.
+"""Generation pipeline for Phases 1 and 2.
 
-Generates simple stories via a vLLM-served model (OpenAI-compatible API),
-applies rule-based filters, and saves results to an isolated experiment
-directory with full configuration and summary metadata.
+Phase 1 (descriptors): factual sentences from concept × relation triples.
+Phase 2 (everyday events): short scenes exercising 2-4 concept pairs.
+
+Both phases use a vLLM-served model (OpenAI-compatible API), apply rule-based
+filters, track coverage, and save results to isolated experiment directories.
 
 Usage::
 
-    python -m generation.generate \\
-        --phase 1 \\
-        --model llama-70b \\
-        --api-base http://localhost:8000/v1 \\
-        --count 1000 \\
-        --batch-size 50 \\
-        --output-dir data/generation/phase1/ \\
-        --seed 42 \\
-        --name baseline
+    # Phase 1
+    python -m generation.generate --phase 1 \\
+        --model llama-70b --count 200
+
+    # Phase 2
+    python -m generation.generate --phase 2 \\
+        --model llama-70b --count 100
 
 Each run creates::
 
     {output-dir}/{run-id}/
         config.json     # all arguments + timestamps
-        accepted.jsonl  # stories that passed all filters
-        rejected.jsonl  # stories that failed, with rejection_reasons
+        accepted.jsonl  # samples that passed all filters
+        rejected.jsonl  # samples that failed, with rejection_reasons
+        coverage.json   # coverage matrix snapshot
         summary.json    # final stats written at completion
 """
 
@@ -42,9 +43,10 @@ from typing import Any
 from openai import AsyncOpenAI
 from tqdm import tqdm
 
-from .filters import FilterStats, add_to_minhash_index, create_minhash_index, run_all_filters
-from .prompts.phase1 import PROMPT_TEMPLATE_VERSION, build_prompt, random_feature
-from .triplets import load_vocab, sample_triplet
+from .coverage import CoverageMatrix, load_concepts
+from .filters import FilterStats, add_to_minhash_index, create_minhash_index, run_descriptor_filters, run_scene_filters
+from .prompts.phase1 import DEFAULT_DESCRIPTOR_VERSION, build_descriptor_prompt, get_descriptor_template
+from .prompts.phase2 import DEFAULT_SCENE_VERSION, build_scene_prompt, get_scene_template, select_concept_pairs, select_scene_type
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +55,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _DEFAULT_TEMPERATURE = 0.7
-_DEFAULT_MAX_TOKENS = 512
+_DEFAULT_MAX_TOKENS = 256
+_DEFAULT_MAX_TOKENS_PHASE2 = 512
 _MAX_API_RETRIES = 3
 _RETRY_BASE_DELAY = 1.0  # seconds
+_DEFAULT_PAIRS_PER_SCENE = 3
 
 
 # ---------------------------------------------------------------------------
@@ -72,11 +76,6 @@ def _slugify(value: str) -> str:
 
 
 def _make_run_id(model: str, seed: int, name: str | None) -> str:
-    """Generate a descriptive, unique run identifier.
-
-    Format: ``{timestamp}_{model-slug}_s{seed}[_{name}]``
-    Example: ``20250222T103045_llama-70b_s42_baseline``
-    """
     ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%S")
     model_slug = _slugify(model)
     run_id = f"{ts}_{model_slug}_s{seed}"
@@ -86,7 +85,6 @@ def _make_run_id(model: str, seed: int, name: str | None) -> str:
 
 
 def _experiment_dir(base: Path, run_id: str) -> Path:
-    """Return (and create) the isolated directory for this run."""
     d = base / run_id
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -101,7 +99,6 @@ def _write_config(
     exp_dir: Path,
     run_id: str,
     started_at: str,
-    phase: int,
     model: str,
     api_base: str,
     count: int,
@@ -109,21 +106,34 @@ def _write_config(
     seed: int,
     temperature: float,
     max_tokens: int,
+    prompt_version: str,
+    prompt_template: str,
     name: str | None,
+    min_per_cell: int,
+    phase: int = 1,
+    pairs_per_scene: int | None = None,
 ) -> None:
+    mode = "descriptors" if phase == 1 else "everyday_events"
+    prompt_vars = ["noun", "fact_sentence"] if phase == 1 else ["scene_type", "fact_list"]
     config: dict[str, Any] = {
         "run_id": run_id,
         "started_at": started_at,
         "phase": phase,
+        "mode": mode,
         "model": model,
         "api_base": api_base,
         "count": count,
+        "min_per_cell": min_per_cell,
         "batch_size": batch_size,
         "seed": seed,
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "prompt_template_version": PROMPT_TEMPLATE_VERSION,
+        "prompt_template_version": prompt_version,
+        "prompt_template": prompt_template,
+        "prompt_variables": prompt_vars,
     }
+    if phase == 2 and pairs_per_scene is not None:
+        config["pairs_per_scene"] = pairs_per_scene
     if name:
         config["name"] = name
     (exp_dir / "config.json").write_text(
@@ -137,18 +147,20 @@ def _write_summary(
     stats: FilterStats,
     elapsed_s: float,
     total_tokens: int,
+    coverage_summary: str,
 ) -> None:
     summary: dict[str, Any] = {
         "run_id": run_id,
         "completed_at": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
         "elapsed_s": round(elapsed_s, 2),
-        "throughput_stories_per_s": round(stats.total / elapsed_s, 2) if elapsed_s > 0 else 0.0,
+        "throughput_descriptors_per_s": round(stats.total / elapsed_s, 2) if elapsed_s > 0 else 0.0,
         "throughput_tokens_per_s": round(total_tokens / elapsed_s, 2) if elapsed_s > 0 else 0.0,
         "accepted": stats.passed,
         "rejected": stats.rejected,
         "total_generated": stats.total,
         "total_tokens": total_tokens,
         "pass_rate": round(stats.pass_rate, 4),
+        "coverage": coverage_summary,
         "filter_breakdown": dict(
             sorted(stats.failures.items(), key=lambda kv: -kv[1])
         ),
@@ -163,24 +175,26 @@ def _write_summary(
 # ---------------------------------------------------------------------------
 
 
-def _story_record(
+def _descriptor_record(
     content: str,
-    phase: int,
     model: str,
-    triplet: dict[str, str],
-    feature: str,
+    noun: str,
+    relation: str,
+    value: str,
     run_id: str,
+    prompt_version: str,
     filters_passed: bool,
     rejection_reasons: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Build the JSON record for one story."""
+    """Build the JSON record for one descriptor."""
     record: dict[str, Any] = {
         "content": content,
-        "phase": phase,
+        "phase": 1,
         "source_model": model,
-        "word_triplet": triplet,
-        "narrative_feature": feature,
-        "prompt_template_version": PROMPT_TEMPLATE_VERSION,
+        "noun": noun,
+        "relation": relation,
+        "value": value,
+        "prompt_template_version": prompt_version,
         "run_id": run_id,
         "timestamp": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
         "filters_passed": filters_passed,
@@ -196,6 +210,7 @@ async def _call_api_with_retry(
     prompt: str,
     temperature: float,
     max_tokens: int,
+    extra_body: dict[str, Any] | None = None,
 ) -> tuple[str | None, int]:
     """Call the API with exponential-backoff retry on failure.
 
@@ -204,12 +219,15 @@ async def _call_api_with_retry(
     delay = _RETRY_BASE_DELAY
     for attempt in range(1, _MAX_API_RETRIES + 1):
         try:
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if extra_body:
+                kwargs["extra_body"] = extra_body
+            response = await client.chat.completions.create(**kwargs)
             content = response.choices[0].message.content
             text = content.strip() if content else None
             if response.usage and response.usage.completion_tokens:
@@ -230,63 +248,158 @@ async def _call_api_with_retry(
 async def _generate_one(
     client: AsyncOpenAI,
     model: str,
-    phase: int,
-    vocab: dict[str, list[str]],
+    noun: str,
+    relation: str,
+    value: str,
     run_id: str,
     temperature: float,
     max_tokens: int,
     minhash_index: Any | None,
-    rng: random.Random,
-    story_index: int,
+    descriptor_index: int,
+    prompt_version: str,
+    extra_body: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int]:
-    """Generate and filter one story.
+    """Generate and filter one descriptor.
 
     Returns:
-        ``(accepted_record, rejected_record, completion_tokens)`` — exactly one
-        of the records will be non-None.
+        ``(accepted_record, rejected_record, completion_tokens)``
     """
-    triplet = sample_triplet(vocab=vocab, phase=phase, rng=rng)
-    feature = random_feature(rng=rng)
-    prompt = build_prompt(triplet, feature)
+    prompt = build_descriptor_prompt(noun, relation, value, version=prompt_version)
 
-    content, tokens = await _call_api_with_retry(client, model, prompt, temperature, max_tokens)
+    content, tokens = await _call_api_with_retry(client, model, prompt, temperature, max_tokens, extra_body=extra_body)
 
     if content is None:
-        rejected = _story_record(
+        rejected = _descriptor_record(
             content="",
-            phase=phase,
             model=model,
-            triplet=triplet,
-            feature=feature,
+            noun=noun,
+            relation=relation,
+            value=value,
             run_id=run_id,
+            prompt_version=prompt_version,
             filters_passed=False,
             rejection_reasons=["api_failure"],
         )
         return None, rejected, tokens
 
-    passed, reasons = run_all_filters(content, triplet, minhash_index)
+    passed, reasons, cleaned = run_descriptor_filters(content, noun, relation, value, minhash_index)
 
     if passed:
         if minhash_index is not None:
-            add_to_minhash_index(content, f"{run_id}-{story_index}", minhash_index)
-        accepted = _story_record(
-            content=content,
-            phase=phase,
+            add_to_minhash_index(cleaned, f"{run_id}-{descriptor_index}", minhash_index)
+        accepted = _descriptor_record(
+            content=cleaned,
             model=model,
-            triplet=triplet,
-            feature=feature,
+            noun=noun,
+            relation=relation,
+            value=value,
             run_id=run_id,
+            prompt_version=prompt_version,
             filters_passed=True,
         )
         return accepted, None, tokens
     else:
-        rejected = _story_record(
+        rejected = _descriptor_record(
             content=content,
-            phase=phase,
             model=model,
-            triplet=triplet,
-            feature=feature,
+            noun=noun,
+            relation=relation,
+            value=value,
             run_id=run_id,
+            prompt_version=prompt_version,
+            filters_passed=False,
+            rejection_reasons=reasons,
+        )
+        return None, rejected, tokens
+
+
+def _scene_record(
+    content: str,
+    model: str,
+    concept_pairs: list[tuple[str, str, str]],
+    scene_type: str,
+    run_id: str,
+    prompt_version: str,
+    filters_passed: bool,
+    rejection_reasons: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build the JSON record for one everyday scene."""
+    record: dict[str, Any] = {
+        "content": content,
+        "phase": 2,
+        "source_model": model,
+        "concept_pairs": [
+            {"noun": n, "relation": r, "value": v} for n, r, v in concept_pairs
+        ],
+        "scene_type": scene_type,
+        "prompt_template_version": prompt_version,
+        "run_id": run_id,
+        "timestamp": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
+        "filters_passed": filters_passed,
+    }
+    if rejection_reasons is not None:
+        record["rejection_reasons"] = rejection_reasons
+    return record
+
+
+async def _generate_one_scene(
+    client: AsyncOpenAI,
+    model: str,
+    concept_pairs: list[tuple[str, str, str]],
+    scene_type: str,
+    run_id: str,
+    temperature: float,
+    max_tokens: int,
+    minhash_index: Any | None,
+    scene_index: int,
+    prompt_version: str,
+    extra_body: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int]:
+    """Generate and filter one everyday scene.
+
+    Returns:
+        ``(accepted_record, rejected_record, completion_tokens)``
+    """
+    prompt = build_scene_prompt(concept_pairs, scene_type, version=prompt_version)
+
+    content, tokens = await _call_api_with_retry(client, model, prompt, temperature, max_tokens, extra_body=extra_body)
+
+    if content is None:
+        rejected = _scene_record(
+            content="",
+            model=model,
+            concept_pairs=concept_pairs,
+            scene_type=scene_type,
+            run_id=run_id,
+            prompt_version=prompt_version,
+            filters_passed=False,
+            rejection_reasons=["api_failure"],
+        )
+        return None, rejected, tokens
+
+    passed, reasons, cleaned = run_scene_filters(content, concept_pairs, minhash_index)
+
+    if passed:
+        if minhash_index is not None:
+            add_to_minhash_index(cleaned, f"{run_id}-scene-{scene_index}", minhash_index)
+        accepted = _scene_record(
+            content=cleaned,
+            model=model,
+            concept_pairs=concept_pairs,
+            scene_type=scene_type,
+            run_id=run_id,
+            prompt_version=prompt_version,
+            filters_passed=True,
+        )
+        return accepted, None, tokens
+    else:
+        rejected = _scene_record(
+            content=content,
+            model=model,
+            concept_pairs=concept_pairs,
+            scene_type=scene_type,
+            run_id=run_id,
+            prompt_version=prompt_version,
             filters_passed=False,
             rejection_reasons=reasons,
         )
@@ -299,7 +412,6 @@ async def _generate_one(
 
 
 async def run_generation(
-    phase: int,
     model: str,
     api_base: str,
     api_key: str,
@@ -310,45 +422,58 @@ async def run_generation(
     temperature: float,
     max_tokens: int,
     name: str | None = None,
+    prompt_version: str | None = None,
+    min_per_cell: int = 3,
+    concepts_path: Path | None = None,
+    no_think: bool = False,
+    phase: int = 1,
+    pairs_per_scene: int = _DEFAULT_PAIRS_PER_SCENE,
 ) -> None:
-    """Run the full generation pipeline.
-
-    Each invocation creates an isolated experiment directory under
-    ``output_dir`` containing ``config.json``, ``accepted.jsonl``,
-    ``rejected.jsonl``, and ``summary.json``.
+    """Run the generation pipeline for Phase 1 or Phase 2.
 
     Args:
-        phase: Curriculum phase number.
         model: Model name as served by vLLM.
         api_base: Base URL of the OpenAI-compatible API endpoint.
         api_key: API key (use "EMPTY" for local vLLM servers).
-        count: Target number of *accepted* stories to generate.
+        count: Target number of *accepted* samples to generate.
         batch_size: Number of concurrent API calls per batch.
         output_dir: Root directory; each run gets its own subdirectory.
         seed: Random seed for reproducibility.
         temperature: Sampling temperature.
         max_tokens: Maximum tokens per generation.
-        name: Optional human-readable experiment label included in the run ID
-            and config (e.g. "baseline", "temp-09", "llama-vs-mistral").
+        name: Optional experiment label.
+        prompt_version: Prompt template version.
+        min_per_cell: Minimum samples per coverage cell (used for batch selection).
+        concepts_path: Path to concepts.json (defaults to generation/concepts.json).
+        no_think: Disable thinking/reasoning mode (for Qwen3, DeepSeek, etc.).
+        phase: Curriculum phase (1=descriptors, 2=everyday events).
+        pairs_per_scene: Number of concept pairs per scene (phase 2 only).
     """
     rng = random.Random(seed)
     started_at = datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
     run_id = _make_run_id(model, seed, name)
 
-    vocab = load_vocab(phase)
+    if phase == 1:
+        prompt_template, prompt_ver = get_descriptor_template(prompt_version)
+    else:
+        prompt_template, prompt_ver = get_scene_template(prompt_version)
+
+    # Load concepts and initialize coverage.
+    concepts = load_concepts(concepts_path)
+    coverage = CoverageMatrix(concepts)
+
     minhash_index = create_minhash_index()
     stats = FilterStats()
 
-    # One subdirectory per run — fully isolated.
     exp_dir = _experiment_dir(Path(output_dir), run_id)
     accepted_path = exp_dir / "accepted.jsonl"
     rejected_path = exp_dir / "rejected.jsonl"
+    coverage_path = exp_dir / "coverage.json"
 
     _write_config(
         exp_dir=exp_dir,
         run_id=run_id,
         started_at=started_at,
-        phase=phase,
         model=model,
         api_base=api_base,
         count=count,
@@ -356,79 +481,216 @@ async def run_generation(
         seed=seed,
         temperature=temperature,
         max_tokens=max_tokens,
+        prompt_version=prompt_ver,
+        prompt_template=prompt_template,
         name=name,
+        min_per_cell=min_per_cell,
+        phase=phase,
+        pairs_per_scene=pairs_per_scene if phase == 2 else None,
     )
     logger.info("Experiment dir: %s", exp_dir)
-    logger.info("Starting run %s | target=%d | model=%s | phase=%d", run_id, count, model, phase)
+    unit = "descriptors" if phase == 1 else "scenes"
+    logger.info("Starting run %s | phase=%d | target=%d %s | model=%s", run_id, phase, count, unit, model)
 
     client = AsyncOpenAI(api_key=api_key, base_url=api_base)
+
+    extra_body: dict[str, Any] | None = None
+    if no_think:
+        extra_body = {"chat_template_kwargs": {"enable_thinking": False}}
+        logger.info("Thinking mode disabled via extra_body")
 
     accepted_count = 0
     total_generated = 0
     total_tokens = 0
-    story_index = 0
     start_time = time.monotonic()
 
-    with (
-        accepted_path.open("w", encoding="utf-8") as acc_f,
-        rejected_path.open("w", encoding="utf-8") as rej_f,
-        tqdm(total=count, unit="story", desc=run_id, dynamic_ncols=True) as bar,
-    ):
-        while accepted_count < count:
-            remaining = count - accepted_count
-            # Oversample by 3× to absorb expected rejections without extra round-trips.
-            current_batch = min(batch_size, remaining * 3)
+    sem = asyncio.Semaphore(batch_size)
 
-            tasks = [
-                _generate_one(
+    # --- Phase 1: Descriptor generation ---
+    if phase == 1:
+        async def _bounded_generate(
+            noun: str, relation: str, value: str, idx: int,
+        ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int]:
+            async with sem:
+                return await _generate_one(
                     client=client,
                     model=model,
-                    phase=phase,
-                    vocab=vocab,
+                    noun=noun,
+                    relation=relation,
+                    value=value,
                     run_id=run_id,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     minhash_index=minhash_index,
-                    rng=rng,
-                    story_index=story_index + i,
+                    descriptor_index=idx,
+                    prompt_version=prompt_ver,
+                    extra_body=extra_body,
                 )
-                for i in range(current_batch)
-            ]
-            story_index += current_batch
 
-            results = await asyncio.gather(*tasks)
+        def _process_result(
+            result: tuple[dict[str, Any] | None, dict[str, Any] | None, int],
+            acc_f: Any,
+            rej_f: Any,
+            bar: Any,
+        ) -> None:
+            nonlocal accepted_count, total_generated, total_tokens
+            accepted, rejected, tokens = result
+            total_generated += 1
+            total_tokens += tokens
+            if accepted is not None:
+                acc_f.write(json.dumps(accepted, ensure_ascii=False) + "\n")
+                accepted_count += 1
+                stats.record(True, [])
+                coverage.record(accepted["noun"], accepted["relation"], accepted["value"], model)
+                bar.update(1)
+            else:
+                assert rejected is not None
+                rej_f.write(json.dumps(rejected, ensure_ascii=False) + "\n")
+                stats.record(False, rejected.get("rejection_reasons", []))
 
-            for accepted, rejected, tokens in results:
-                total_generated += 1
-                total_tokens += tokens
-                if accepted is not None:
-                    acc_f.write(json.dumps(accepted, ensure_ascii=False) + "\n")
-                    accepted_count += 1
-                    stats.record(True, [])
-                    bar.update(1)
+            if total_generated % batch_size == 0:
+                elapsed = time.monotonic() - start_time
+                bar.set_postfix(
+                    desc_s=f"{total_generated / elapsed:.1f}" if elapsed > 0 else "0.0",
+                    tok_s=f"{total_tokens / elapsed:.0f}" if elapsed > 0 else "0",
+                    pass_rate=f"{stats.pass_rate:.1%}",
+                    rejected=stats.rejected,
+                )
+
+        with (
+            accepted_path.open("w", encoding="utf-8") as acc_f,
+            rejected_path.open("w", encoding="utf-8") as rej_f,
+            tqdm(total=count, unit="desc", desc=run_id, dynamic_ncols=True) as bar,
+        ):
+            total_to_fire = count * 3
+            batch_triples = coverage.select_next_batch(total_to_fire, min_count=min_per_cell)
+
+            if len(batch_triples) < total_to_fire:
+                if batch_triples:
+                    extended: list[tuple[str, str, str]] = []
+                    while len(extended) < total_to_fire:
+                        rng.shuffle(batch_triples)
+                        extended.extend(batch_triples)
+                    batch_triples = extended[:total_to_fire]
                 else:
-                    assert rejected is not None
-                    rej_f.write(json.dumps(rejected, ensure_ascii=False) + "\n")
-                    stats.record(False, rejected.get("rejection_reasons", []))
+                    logger.info("All cells already covered at min_per_cell=%d", min_per_cell)
+                    return
 
-            elapsed = time.monotonic() - start_time
-            bar.set_postfix(
-                stories_s=f"{total_generated / elapsed:.1f}" if elapsed > 0 else "0.0",
-                tok_s=f"{total_tokens / elapsed:.0f}" if elapsed > 0 else "0",
-                pass_rate=f"{stats.pass_rate:.1%}",
-                rejected=stats.rejected,
+            tasks = []
+            for i, (noun, relation, value) in enumerate(batch_triples):
+                tasks.append(_bounded_generate(noun, relation, value, i))
+
+            for coro in asyncio.as_completed(tasks):
+                result = await coro
+                _process_result(result, acc_f, rej_f, bar)
+                if accepted_count >= count:
+                    break
+
+    # --- Phase 2: Scene generation ---
+    else:
+        async def _bounded_generate_scene(
+            pairs: list[tuple[str, str, str]], scene_type: str, idx: int,
+        ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int]:
+            async with sem:
+                return await _generate_one_scene(
+                    client=client,
+                    model=model,
+                    concept_pairs=pairs,
+                    scene_type=scene_type,
+                    run_id=run_id,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    minhash_index=minhash_index,
+                    scene_index=idx,
+                    prompt_version=prompt_ver,
+                    extra_body=extra_body,
+                )
+
+        def _process_scene_result(
+            result: tuple[dict[str, Any] | None, dict[str, Any] | None, int],
+            acc_f: Any,
+            rej_f: Any,
+            bar: Any,
+        ) -> None:
+            nonlocal accepted_count, total_generated, total_tokens
+            accepted, rejected, tokens = result
+            total_generated += 1
+            total_tokens += tokens
+            if accepted is not None:
+                acc_f.write(json.dumps(accepted, ensure_ascii=False) + "\n")
+                accepted_count += 1
+                stats.record(True, [])
+                for pair in accepted["concept_pairs"]:
+                    coverage.record(pair["noun"], pair["relation"], pair["value"], model)
+                bar.update(1)
+            else:
+                assert rejected is not None
+                rej_f.write(json.dumps(rejected, ensure_ascii=False) + "\n")
+                stats.record(False, rejected.get("rejection_reasons", []))
+
+            if total_generated % batch_size == 0:
+                elapsed = time.monotonic() - start_time
+                bar.set_postfix(
+                    scene_s=f"{total_generated / elapsed:.1f}" if elapsed > 0 else "0.0",
+                    tok_s=f"{total_tokens / elapsed:.0f}" if elapsed > 0 else "0",
+                    pass_rate=f"{stats.pass_rate:.1%}",
+                    rejected=stats.rejected,
+                )
+
+        with (
+            accepted_path.open("w", encoding="utf-8") as acc_f,
+            rejected_path.open("w", encoding="utf-8") as rej_f,
+            tqdm(total=count, unit="scene", desc=run_id, dynamic_ncols=True) as bar,
+        ):
+            # Pre-build scene tasks. Each scene uses pairs_per_scene concept triples.
+            # Oversample by 3x to absorb rejections.
+            total_to_fire = count * 3
+            all_undercovered = coverage.select_next_batch(
+                total_to_fire * pairs_per_scene, min_count=min_per_cell,
             )
 
-            if accepted_count >= count:
-                break
-    elapsed = time.monotonic() - start_time
-    _write_summary(exp_dir, run_id, stats, elapsed, total_tokens)
+            if not all_undercovered:
+                logger.info("All cells already covered at min_per_cell=%d", min_per_cell)
+                return
 
+            # Extend if we don't have enough triples.
+            if len(all_undercovered) < total_to_fire * pairs_per_scene:
+                extended: list[tuple[str, str, str]] = []
+                while len(extended) < total_to_fire * pairs_per_scene:
+                    rng.shuffle(all_undercovered)
+                    extended.extend(all_undercovered)
+                all_undercovered = extended[: total_to_fire * pairs_per_scene]
+
+            tasks = []
+            for i in range(total_to_fire):
+                # Slice concept pairs for this scene from the pool.
+                start_idx = i * pairs_per_scene
+                candidates = all_undercovered[start_idx : start_idx + pairs_per_scene]
+                pairs = select_concept_pairs(candidates, rng, n_pairs=pairs_per_scene)
+                scene_type = select_scene_type(rng)
+                tasks.append(_bounded_generate_scene(pairs, scene_type, i))
+
+            for coro in asyncio.as_completed(tasks):
+                result = await coro
+                _process_scene_result(result, acc_f, rej_f, bar)
+                if accepted_count >= count:
+                    break
+
+    elapsed = time.monotonic() - start_time
+
+    # Save coverage snapshot.
+    coverage.save(coverage_path)
+
+    _write_summary(exp_dir, run_id, stats, elapsed, total_tokens, coverage.summary())
+
+    sample_label = "descriptors" if phase == 1 else "scenes"
     logger.info("Run %s complete in %.1fs", run_id, elapsed)
     print(stats.summary())
+    print(f"\n{coverage.summary()}")
     print(f"\nExperiment: {exp_dir}")
-    print(f"  accepted.jsonl  ({stats.passed} stories)")
-    print(f"  rejected.jsonl  ({stats.rejected} stories)")
+    print(f"  accepted.jsonl  ({stats.passed} {sample_label})")
+    print(f"  rejected.jsonl  ({stats.rejected} {sample_label})")
+    print(f"  coverage.json")
     print(f"  config.json")
     print(f"  summary.json")
 
@@ -442,11 +704,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="generation.generate",
         description=(
-            "Phase 1 story generation pipeline. "
+            "Generation pipeline (Phase 1: descriptors, Phase 2: everyday events). "
             "Each run creates an isolated experiment directory."
         ),
     )
-    parser.add_argument("--phase", type=int, default=1, help="Curriculum phase (default: 1)")
+    parser.add_argument("--phase", type=int, default=1, choices=[1, 2],
+                        help="Curriculum phase (1=descriptors, 2=everyday events; default: 1)")
     parser.add_argument("--model", required=True, help="Model name as served by vLLM")
     parser.add_argument(
         "--api-base",
@@ -461,8 +724,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--count",
         type=int,
-        default=1000,
-        help="Target number of accepted stories (default: 1000)",
+        default=200,
+        help="Target number of accepted descriptors (default: 200)",
+    )
+    parser.add_argument(
+        "--min-per-cell",
+        type=int,
+        default=3,
+        help="Minimum descriptors per coverage cell (default: 3)",
     )
     parser.add_argument(
         "--batch-size",
@@ -472,8 +741,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-dir",
-        default="data/generation/phase1",
-        help="Root output directory; each run gets its own subdirectory (default: data/generation/phase1)",
+        default=None,
+        help="Root output directory (default: data/generation/phase{N})",
+    )
+    parser.add_argument(
+        "--pairs-per-scene",
+        type=int,
+        default=_DEFAULT_PAIRS_PER_SCENE,
+        help=f"Concept pairs per scene, phase 2 only (default: {_DEFAULT_PAIRS_PER_SCENE})",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
     parser.add_argument(
@@ -489,12 +764,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help=f"Max tokens per generation (default: {_DEFAULT_MAX_TOKENS})",
     )
     parser.add_argument(
+        "--prompt-version",
+        default=None,
+        help=f"Prompt template version (default: {DEFAULT_DESCRIPTOR_VERSION})",
+    )
+    parser.add_argument(
+        "--concepts",
+        default=None,
+        help="Path to concepts.json (default: generation/concepts.json)",
+    )
+    parser.add_argument(
         "--name",
         default=None,
-        help=(
-            "Optional experiment label appended to the run ID "
-            "(e.g. 'baseline', 'temp-09'). Useful for comparing runs."
-        ),
+        help="Optional experiment label appended to the run ID",
+    )
+    parser.add_argument(
+        "--no-think",
+        action="store_true",
+        help="Disable thinking/reasoning mode (for Qwen3, DeepSeek, etc.)",
     )
     parser.add_argument(
         "--log-level",
@@ -516,19 +803,30 @@ def main() -> None:
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
+    output_dir = args.output_dir or f"data/generation/phase{args.phase}"
+    max_tokens = args.max_tokens
+    # Default to higher token limit for phase 2 scenes.
+    if args.phase == 2 and args.max_tokens == _DEFAULT_MAX_TOKENS:
+        max_tokens = _DEFAULT_MAX_TOKENS_PHASE2
+
     asyncio.run(
         run_generation(
-            phase=args.phase,
             model=args.model,
             api_base=args.api_base,
             api_key=args.api_key,
             count=args.count,
             batch_size=args.batch_size,
-            output_dir=Path(args.output_dir),
+            output_dir=Path(output_dir),
             seed=args.seed,
             temperature=args.temperature,
-            max_tokens=args.max_tokens,
+            max_tokens=max_tokens,
             name=args.name,
+            prompt_version=args.prompt_version,
+            min_per_cell=args.min_per_cell,
+            concepts_path=Path(args.concepts) if args.concepts else None,
+            no_think=args.no_think,
+            phase=args.phase,
+            pairs_per_scene=args.pairs_per_scene,
         )
     )
 

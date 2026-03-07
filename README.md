@@ -4,119 +4,122 @@ Curriculum training data generation pipeline for a 100M parameter language model
 
 ## Overview
 
-This repo generates synthetic story data across curriculum phases. Each phase targets a specific linguistic capability. Phase 1 covers grammar and syntactic composition using age 3-5 vocabulary with no dialogue.
+Knowledge-first synthetic data generation driven by a curated concept list and coverage matrix. Six curriculum phases progress from concept grounding to conversation. See [docs/plan-v2.md](docs/plan-v2.md) for the full plan.
 
-## Phase 1: Grammar & Syntax
+### Curriculum Phases
 
-Phase 1 generates ~200-word simple third-person stories with no dialogue. Stories are produced by a vLLM-served model and filtered using rule-based checks before saving.
+| Phase | Name | Format | Status |
+|-------|------|--------|--------|
+| 1 | Descriptors | Factual sentences from (noun, relation, value) triples | Implemented |
+| 2 | Everyday Events | Short scenes exercising 2–4 concept pairs, no dialogue | Planned |
+| 3 | Events with Dialogue | Phase 2 scenes extended with character dialogue | Planned |
+| 4 | Advanced Descriptors | Compound concepts, cross-concept relations, comparatives | Planned |
+| 5 | Dialogue-Heavy Events | Thin scene wrapper, mostly conversation | Planned |
+| 6 | Pure Conversation | Dialogue only, no narrative frame | Planned |
 
-### Vocabulary
+## Concept Structure
 
-Three word lists (~500 words each) live under `generation/vocab/`:
+~200 nouns (expanding to 300–500) organized by category with relation annotations (IsA, Does, Has, Likes, AtLocation, Sound, Size, Color). Stored in `generation/concepts.json`.
 
-| File | Content |
-|---|---|
-| `phase1_nouns.txt` | Concrete nouns (animals, food, objects, places, roles, nature) |
-| `phase1_verbs.txt` | Action and state verbs, including common inflected forms |
-| `phase1_adjs.txt` | Descriptive adjectives (size, color, emotion, texture, etc.) |
+Generation is coverage-driven: the pipeline queries the coverage matrix for under-covered (noun, relation, value) cells and targets those first.
 
-Each story is generated with a randomly sampled noun + verb + adjective triplet and one of five narrative features (plot twist, moral, foreshadowing, bad ending, conflict).
+## Phase 1: Descriptors
 
-### Running Phase 1 Generation
+Generates factual sentences about concept × relation triples for young children (ages 3–5).
 
-Install dependencies:
+### Running
 
 ```bash
 pip install -r requirements.txt
-# or
-pip install -e .
-```
 
-Start a vLLM server (example):
-
-```bash
-vllm serve meta-llama/Llama-3-70b-Instruct --port 8000
-```
-
-Run the generator:
-
-```bash
 python -m generation.generate \
-  --phase 1 \
-  --model llama-70b \
-  --api-base http://localhost:8000/v1 \
-  --count 1000 \
+  --model nvidia/Llama-3.3-70B-Instruct-FP4 \
+  --api-base http://localhost:8355/v1 \
+  --count 200 \
   --batch-size 50 \
   --output-dir data/generation/phase1/ \
   --seed 42
 ```
 
-All CLI options:
+### CLI Options
 
 | Flag | Default | Description |
-|---|---|---|
-| `--phase` | `1` | Curriculum phase |
+|------|---------|-------------|
 | `--model` | *(required)* | Model name as served by vLLM |
 | `--api-base` | `http://localhost:8000/v1` | OpenAI-compatible API URL |
 | `--api-key` | `EMPTY` | API key (`EMPTY` for local vLLM) |
-| `--count` | `1000` | Target accepted story count |
-| `--batch-size` | `50` | Concurrent API calls per batch |
+| `--count` | `200` | Target accepted descriptor count |
+| `--min-per-cell` | `3` | Minimum descriptors per coverage cell |
+| `--batch-size` | `50` | Concurrent API calls |
 | `--output-dir` | `data/generation/phase1` | Output directory |
 | `--seed` | `42` | Random seed |
 | `--temperature` | `0.7` | Sampling temperature |
-| `--max-tokens` | `512` | Max tokens per generation |
-| `--log-level` | `INFO` | Logging verbosity |
+| `--max-tokens` | `256` | Max tokens per generation |
+| `--prompt-version` | `p1-desc-v1` | Prompt template version |
+| `--concepts` | `generation/concepts.json` | Path to concept structure |
+| `--name` | *(optional)* | Experiment label |
+| `--no-think` | `false` | Disable thinking mode (Qwen3, DeepSeek) |
 
-## Output Format
+### Output
 
-Accepted stories are written to `{output-dir}/{run-id}.jsonl`, one JSON object per line:
+Each run creates an isolated experiment directory:
+
+```
+data/generation/phase1/{run-id}/
+    config.json     # all arguments + timestamps
+    accepted.jsonl  # descriptors that passed all filters
+    rejected.jsonl  # descriptors that failed, with rejection_reasons
+    coverage.json   # coverage matrix snapshot
+    summary.json    # final stats
+```
+
+Each descriptor record:
 
 ```json
 {
-  "content": "Once there was a tiny rabbit who loved to climb...",
+  "content": "Dogs have four legs and a tail. They are covered in soft fur.",
   "phase": 1,
-  "source_model": "llama-70b",
-  "word_triplet": {"noun": "rabbit", "verb": "climb", "adj": "tiny"},
-  "narrative_feature": "plot_twist",
-  "prompt_template_version": "p1-v1",
-  "run_id": "gen-20250222-001",
-  "timestamp": "2025-02-22T10:30:00Z",
+  "source_model": "nvidia/Llama-3.3-70B-Instruct-FP4",
+  "noun": "dog",
+  "relation": "Has",
+  "value": "four legs",
+  "prompt_template_version": "p1-desc-v1",
+  "run_id": "20250306T...",
+  "timestamp": "2025-03-06T10:30:00Z",
   "filters_passed": true
 }
 ```
 
-Rejected stories go to `{output-dir}/rejected/{run-id}.jsonl` with the same schema plus a `rejection_reasons` list.
-
-## Filters
+### Filters
 
 All filters are rule-based — no LLM calls.
 
 | Filter | Rejection condition |
-|---|---|
-| Word count | Outside 150–250 words |
-| Triplet words | Any seed word absent (stem-matched) |
-| No dialogue | Quotation marks or speech attribution patterns present |
-| No first person | "I", "me", "my", "mine", "myself" appear as standalone words |
-| No markers | Structural placeholders (`[`, `]`, `*`, `#`, `---`, `Title:`, etc.) |
-| Near-duplicate | MinHash similarity > 0.8 against accepted stories |
+|--------|---------------------|
+| Word count | Outside 5–60 words |
+| Concept mention | Target noun absent (stem-matched) |
+| Factual grounding | Relation value absent (stem-matched) |
+| No dialogue | Quotation marks or speech attribution present |
+| No narrative | Story indicators (once upon, one day, there was, etc.) |
+| No markers | Structural placeholders (`[`, `]`, `*`, `#`, etc.) |
+| Near-duplicate | MinHash similarity > 0.8 against accepted descriptors |
 
 ## Repository Structure
 
 ```
 cult-data/
+├── docs/
+│   └── plan-v2.md              # Full generation & validation plan
 ├── generation/
 │   ├── __init__.py
-│   ├── generate.py           # Main generation script
-│   ├── prompts/
-│   │   ├── __init__.py
-│   │   └── phase1.py         # Prompt template + narrative features
-│   ├── triplets.py           # Word triplet sampling
-│   ├── filters.py            # Rule-based quality filters
-│   └── vocab/
+│   ├── generate.py             # Main generation pipeline
+│   ├── filters.py              # Rule-based quality filters
+│   ├── coverage.py             # Coverage matrix tracking
+│   ├── concepts.json           # Curated noun × relation structure
+│   ├── bootstrap_concepts.py   # One-shot concept list generator
+│   └── prompts/
 │       ├── __init__.py
-│       ├── phase1_nouns.txt
-│       ├── phase1_verbs.txt
-│       └── phase1_adjs.txt
+│       └── phase1.py           # Descriptor prompt templates
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md

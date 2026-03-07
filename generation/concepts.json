@@ -1,0 +1,1996 @@
+{
+  "metadata": { "version": "0.6", "noun_count": 193 },
+  "nouns": {
+    "dog": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "pet"],
+        "Does": ["bark", "run", "fetch", "wag its tail"],
+        "Has": ["four legs", "a tail", "fur", "paws"],
+        "Likes": ["bones", "walks", "belly rubs"],
+        "AtLocation": ["house", "park", "yard"],
+        "Sound": ["woof"],
+        "Size": ["medium"],
+        "Color": ["brown", "white", "black"]
+      }
+    },
+    "cat": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "pet"],
+        "Does": ["purr", "climb", "nap", "hunt"],
+        "Has": ["four legs", "a tail", "whiskers", "soft fur"],
+        "Likes": ["fish", "napping", "yarn"],
+        "AtLocation": ["house", "garden", "rooftop"],
+        "Sound": ["meow"],
+        "Size": ["small"],
+        "Color": ["orange", "black", "gray", "white"]
+      }
+    },
+    "bird": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["fly", "sing", "build nests"],
+        "Has": ["two wings", "feathers", "a beak"],
+        "Likes": ["seeds", "worms", "singing"],
+        "AtLocation": ["tree", "sky", "nest"],
+        "Sound": ["chirp", "tweet"],
+        "Size": ["small"],
+        "Color": ["blue", "red", "brown"]
+      }
+    },
+    "fish": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["swim", "blow bubbles"],
+        "Has": ["fins", "scales", "gills", "a tail"],
+        "Likes": ["water", "swimming"],
+        "AtLocation": ["ocean", "river", "fish tank", "pond"],
+        "Sound": ["splash"],
+        "Size": ["small"],
+        "Color": ["gold", "orange", "silver", "blue"]
+      }
+    },
+    "horse": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["gallop", "run", "jump", "eat grass"],
+        "Has": ["four legs", "a mane", "hooves", "a long tail"],
+        "Likes": ["apples", "carrots", "running"],
+        "AtLocation": ["farm", "stable", "field"],
+        "Sound": ["neigh"],
+        "Size": ["big"],
+        "Color": ["brown", "white", "black"]
+      }
+    },
+    "cow": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "farm animal"],
+        "Does": ["eat grass", "give milk"],
+        "Has": ["four legs", "a tail", "spots", "horns"],
+        "Likes": ["grass", "hay"],
+        "AtLocation": ["farm", "barn", "field"],
+        "Sound": ["moo"],
+        "Size": ["big"],
+        "Color": ["black", "white", "brown"]
+      }
+    },
+    "pig": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "farm animal"],
+        "Does": ["oink", "roll in mud", "eat"],
+        "Has": ["four legs", "a curly tail", "a snout"],
+        "Likes": ["mud", "food", "rolling around"],
+        "AtLocation": ["farm", "barn", "mud puddle"],
+        "Sound": ["oink"],
+        "Size": ["medium"],
+        "Color": ["pink"]
+      }
+    },
+    "chicken": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "bird", "farm animal"],
+        "Does": ["lay eggs", "peck", "scratch the ground"],
+        "Has": ["two legs", "feathers", "a beak", "wings"],
+        "Likes": ["seeds", "corn", "bugs"],
+        "AtLocation": ["farm", "coop", "yard"],
+        "Sound": ["cluck"],
+        "Size": ["small"],
+        "Color": ["white", "brown", "red"]
+      }
+    },
+    "frog": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "amphibian"],
+        "Does": ["jump", "swim", "catch flies"],
+        "Has": ["four legs", "webbed feet", "big eyes"],
+        "Likes": ["water", "flies", "lily pads"],
+        "AtLocation": ["pond", "swamp", "garden"],
+        "Sound": ["ribbit", "croak"],
+        "Size": ["small"],
+        "Color": ["green"]
+      }
+    },
+    "butterfly": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["insect"],
+        "Does": ["fly", "land on flowers"],
+        "Has": ["two wings", "six legs", "antennae"],
+        "Likes": ["flowers", "nectar", "sunshine"],
+        "AtLocation": ["garden", "meadow", "park"],
+        "Size": ["tiny"],
+        "Color": ["orange", "yellow", "blue"]
+      }
+    },
+    "rabbit": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["hop", "dig", "nibble"],
+        "Has": ["long ears", "soft fur", "a fluffy tail", "four legs"],
+        "Likes": ["carrots", "lettuce", "hopping"],
+        "AtLocation": ["burrow", "garden", "meadow"],
+        "Size": ["small"],
+        "Color": ["white", "brown", "gray"]
+      }
+    },
+    "elephant": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["spray water", "walk slowly", "eat leaves"],
+        "Has": ["a long trunk", "big ears", "four legs", "tusks"],
+        "Likes": ["peanuts", "water", "bananas"],
+        "AtLocation": ["jungle", "zoo", "savanna"],
+        "Sound": ["trumpet"],
+        "Size": ["very big"],
+        "Color": ["gray"]
+      }
+    },
+    "lion": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "big cat"],
+        "Does": ["roar", "run", "sleep in the sun"],
+        "Has": ["a mane", "four legs", "sharp teeth", "a tail"],
+        "Likes": ["sleeping", "meat"],
+        "AtLocation": ["savanna", "zoo"],
+        "Sound": ["roar"],
+        "Size": ["big"],
+        "Color": ["golden", "brown"]
+      }
+    },
+    "bear": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["climb trees", "catch fish", "hibernate"],
+        "Has": ["four legs", "thick fur", "sharp claws"],
+        "Likes": ["honey", "fish", "berries"],
+        "AtLocation": ["forest", "cave", "mountain"],
+        "Sound": ["growl"],
+        "Size": ["big"],
+        "Color": ["brown", "black", "white"]
+      }
+    },
+    "duck": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "bird"],
+        "Does": ["swim", "fly", "waddle"],
+        "Has": ["two legs", "feathers", "a bill", "webbed feet"],
+        "Likes": ["bread", "water", "swimming"],
+        "AtLocation": ["pond", "lake", "farm"],
+        "Sound": ["quack"],
+        "Size": ["small"],
+        "Color": ["white", "brown", "green"]
+      }
+    },
+    "sheep": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "farm animal"],
+        "Does": ["eat grass", "give wool"],
+        "Has": ["four legs", "a fluffy coat", "hooves"],
+        "Likes": ["grass", "staying in a flock"],
+        "AtLocation": ["farm", "field", "barn"],
+        "Sound": ["baa"],
+        "Size": ["medium"],
+        "Color": ["white", "black"]
+      }
+    },
+    "goat": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "farm animal"],
+        "Does": ["climb", "eat grass", "jump"],
+        "Has": ["four legs", "horns", "a beard", "hooves"],
+        "Likes": ["climbing", "grass", "hay"],
+        "AtLocation": ["farm", "mountain", "field"],
+        "Sound": ["bleat"],
+        "Size": ["medium"],
+        "Color": ["white", "brown", "black"]
+      }
+    },
+    "donkey": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "farm animal"],
+        "Does": ["carry things", "walk", "eat hay"],
+        "Has": ["four legs", "long ears", "a tail", "hooves"],
+        "Likes": ["hay", "carrots"],
+        "AtLocation": ["farm", "field", "barn"],
+        "Sound": ["hee-haw"],
+        "Size": ["big"],
+        "Color": ["gray", "brown"]
+      }
+    },
+    "turkey": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "bird", "farm animal"],
+        "Does": ["strut", "gobble", "peck"],
+        "Has": ["feathers", "a red wattle", "two legs", "a fan tail"],
+        "AtLocation": ["farm", "field"],
+        "Sound": ["gobble"],
+        "Size": ["big"],
+        "Color": ["brown", "black", "white"]
+      }
+    },
+    "whale": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "sea mammal"],
+        "Does": ["swim", "dive deep", "spray water from its blowhole"],
+        "Has": ["a big body", "flippers", "a tail", "a blowhole"],
+        "Likes": ["swimming", "singing"],
+        "AtLocation": ["ocean", "sea"],
+        "Sound": ["whale song"],
+        "Size": ["very big"],
+        "Color": ["blue", "gray", "black"]
+      }
+    },
+    "dolphin": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "sea mammal"],
+        "Does": ["swim", "jump out of the water", "play"],
+        "Has": ["flippers", "a tail", "a fin", "smooth skin"],
+        "Likes": ["fish", "playing", "swimming"],
+        "AtLocation": ["ocean", "sea"],
+        "Sound": ["click", "whistle"],
+        "Size": ["big"],
+        "Color": ["gray"]
+      }
+    },
+    "seal": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "sea mammal"],
+        "Does": ["swim", "slide on ice", "clap its flippers"],
+        "Has": ["flippers", "whiskers", "a round body"],
+        "Likes": ["fish", "swimming", "sunbathing"],
+        "AtLocation": ["ocean", "beach", "ice"],
+        "Sound": ["bark"],
+        "Size": ["big"],
+        "Color": ["gray", "brown"]
+      }
+    },
+    "otter": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "sea mammal"],
+        "Does": ["swim", "float on its back", "crack shells"],
+        "Has": ["four legs", "thick fur", "a long tail", "webbed feet"],
+        "Likes": ["fish", "floating", "playing"],
+        "AtLocation": ["river", "ocean", "lake"],
+        "Size": ["medium"],
+        "Color": ["brown"]
+      }
+    },
+    "shark": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "fish"],
+        "Does": ["swim fast", "hunt"],
+        "Has": ["sharp teeth", "fins", "a tail", "gills"],
+        "AtLocation": ["ocean", "sea"],
+        "Size": ["very big"],
+        "Color": ["gray", "white", "blue"]
+      }
+    },
+    "octopus": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "sea animal"],
+        "Does": ["swim", "squirt ink", "hide"],
+        "Has": ["eight arms", "a soft body", "suckers"],
+        "AtLocation": ["ocean", "sea"],
+        "Size": ["medium"],
+        "Color": ["red", "orange", "purple"]
+      }
+    },
+    "turtle": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "reptile"],
+        "Does": ["swim", "walk slowly", "hide in its shell"],
+        "Has": ["a hard shell", "four legs", "a small head"],
+        "Likes": ["water", "lettuce", "sunshine"],
+        "AtLocation": ["ocean", "pond", "beach", "garden"],
+        "Size": ["small", "medium"],
+        "Color": ["green", "brown"]
+      }
+    },
+    "snake": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "reptile"],
+        "Does": ["slither", "hiss", "shed its skin"],
+        "Has": ["scales", "a long body", "a forked tongue"],
+        "AtLocation": ["forest", "desert", "garden", "jungle"],
+        "Sound": ["hiss"],
+        "Size": ["medium", "long"],
+        "Color": ["green", "brown", "black", "yellow"]
+      }
+    },
+    "crocodile": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "reptile"],
+        "Does": ["swim", "snap its jaws", "hide in the water"],
+        "Has": ["a long tail", "sharp teeth", "four legs", "tough skin"],
+        "AtLocation": ["river", "swamp", "lake"],
+        "Size": ["very big"],
+        "Color": ["green", "brown"]
+      }
+    },
+    "monkey": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["climb trees", "swing from branches", "eat bananas"],
+        "Has": ["two arms", "two legs", "a long tail", "fur"],
+        "Likes": ["bananas", "climbing", "playing"],
+        "AtLocation": ["jungle", "zoo", "forest"],
+        "Sound": ["screech"],
+        "Size": ["medium"],
+        "Color": ["brown", "black", "gray"]
+      }
+    },
+    "parrot": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "bird"],
+        "Does": ["fly", "talk", "copy sounds"],
+        "Has": ["two wings", "feathers", "a curved beak"],
+        "Likes": ["seeds", "fruit", "talking"],
+        "AtLocation": ["jungle", "zoo", "pet store"],
+        "Sound": ["squawk"],
+        "Size": ["small", "medium"],
+        "Color": ["green", "red", "blue", "yellow"]
+      }
+    },
+    "tiger": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "big cat"],
+        "Does": ["roar", "hunt", "swim"],
+        "Has": ["stripes", "four legs", "sharp teeth", "a tail"],
+        "AtLocation": ["jungle", "zoo", "forest"],
+        "Sound": ["roar"],
+        "Size": ["big"],
+        "Color": ["orange", "black", "white"]
+      }
+    },
+    "gorilla": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "ape"],
+        "Does": ["climb", "beat its chest", "eat plants"],
+        "Has": ["two arms", "two legs", "thick fur"],
+        "Likes": ["fruit", "leaves", "family"],
+        "AtLocation": ["jungle", "zoo"],
+        "Sound": ["grunt"],
+        "Size": ["very big"],
+        "Color": ["black", "gray"]
+      }
+    },
+    "giraffe": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["eat leaves from tall trees", "walk"],
+        "Has": ["a very long neck", "four legs", "spots", "small horns"],
+        "Likes": ["leaves", "acacia trees"],
+        "AtLocation": ["savanna", "zoo"],
+        "Size": ["very big", "very tall"],
+        "Color": ["yellow", "brown"]
+      }
+    },
+    "zebra": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["run", "eat grass"],
+        "Has": ["stripes", "four legs", "a mane", "hooves"],
+        "AtLocation": ["savanna", "zoo"],
+        "Size": ["big"],
+        "Color": ["black", "white"]
+      }
+    },
+    "hippo": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["swim", "open its mouth wide", "eat grass"],
+        "Has": ["a big body", "four legs", "a big mouth", "tiny ears"],
+        "Likes": ["water", "mud"],
+        "AtLocation": ["river", "lake", "zoo", "savanna"],
+        "Sound": ["grunt"],
+        "Size": ["very big"],
+        "Color": ["gray"]
+      }
+    },
+    "rhino": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["charge", "eat grass"],
+        "Has": ["a horn", "four legs", "thick skin"],
+        "AtLocation": ["savanna", "zoo"],
+        "Size": ["very big"],
+        "Color": ["gray"]
+      }
+    },
+    "penguin": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "bird"],
+        "Does": ["swim", "waddle", "slide on ice"],
+        "Has": ["two wings", "a beak", "feathers", "webbed feet"],
+        "Likes": ["fish", "swimming", "ice"],
+        "AtLocation": ["ice", "ocean", "zoo"],
+        "Sound": ["honk"],
+        "Size": ["medium"],
+        "Color": ["black", "white"]
+      }
+    },
+    "owl": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal", "bird"],
+        "Does": ["fly", "hunt at night", "turn its head around"],
+        "Has": ["two wings", "big eyes", "feathers", "sharp claws"],
+        "AtLocation": ["tree", "forest", "barn"],
+        "Sound": ["hoot"],
+        "Size": ["medium"],
+        "Color": ["brown", "white", "gray"]
+      }
+    },
+    "bee": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["insect"],
+        "Does": ["fly", "make honey", "buzz"],
+        "Has": ["six legs", "two wings", "a stinger", "stripes"],
+        "Likes": ["flowers", "nectar", "pollen"],
+        "AtLocation": ["garden", "meadow", "beehive"],
+        "Sound": ["buzz"],
+        "Size": ["tiny"],
+        "Color": ["yellow", "black"]
+      }
+    },
+    "spider": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["arachnid"],
+        "Does": ["spin webs", "catch bugs", "crawl"],
+        "Has": ["eight legs", "a small body"],
+        "AtLocation": ["garden", "house", "forest", "web"],
+        "Size": ["tiny"],
+        "Color": ["black", "brown"]
+      }
+    },
+    "apple": {
+      "category": "food",
+      "relations": {
+        "IsA": ["fruit", "food"],
+        "Has": ["seeds", "a stem", "skin"],
+        "AtLocation": ["tree", "kitchen", "store", "lunchbox"],
+        "Size": ["small"],
+        "Color": ["red", "green", "yellow"],
+        "Taste": ["sweet", "crunchy"]
+      }
+    },
+    "banana": {
+      "category": "food",
+      "relations": {
+        "IsA": ["fruit", "food"],
+        "Has": ["a peel", "seeds"],
+        "AtLocation": ["tree", "kitchen", "store"],
+        "Size": ["medium"],
+        "Color": ["yellow"],
+        "Taste": ["sweet", "soft"]
+      }
+    },
+    "milk": {
+      "category": "food",
+      "relations": {
+        "IsA": ["drink", "food"],
+        "Does": ["come from cows"],
+        "AtLocation": ["kitchen", "store", "fridge"],
+        "Color": ["white"],
+        "Taste": ["creamy"]
+      }
+    },
+    "bread": {
+      "category": "food",
+      "relations": {
+        "IsA": ["food"],
+        "Has": ["a crust"],
+        "Does": ["get baked in an oven"],
+        "AtLocation": ["kitchen", "bakery", "store"],
+        "Color": ["brown", "white"],
+        "Taste": ["soft", "warm"]
+      }
+    },
+    "egg": {
+      "category": "food",
+      "relations": {
+        "IsA": ["food"],
+        "Has": ["a shell", "a yolk"],
+        "Does": ["come from chickens"],
+        "AtLocation": ["kitchen", "farm", "nest", "fridge"],
+        "Size": ["small"],
+        "Color": ["white", "brown"],
+        "Shape": ["oval"]
+      }
+    },
+    "carrot": {
+      "category": "food",
+      "relations": {
+        "IsA": ["vegetable", "food"],
+        "Has": ["green leaves on top"],
+        "Does": ["grow in the ground"],
+        "AtLocation": ["garden", "kitchen", "store"],
+        "Size": ["medium"],
+        "Color": ["orange"],
+        "Taste": ["crunchy", "sweet"]
+      }
+    },
+    "cookie": {
+      "category": "food",
+      "relations": {
+        "IsA": ["food", "snack"],
+        "Has": ["chocolate chips"],
+        "Does": ["get baked in an oven"],
+        "AtLocation": ["kitchen", "bakery", "jar"],
+        "Size": ["small"],
+        "Color": ["brown"],
+        "Taste": ["sweet", "crunchy"],
+        "Shape": ["round"]
+      }
+    },
+    "water": {
+      "category": "food",
+      "relations": {
+        "IsA": ["drink", "liquid"],
+        "Does": ["flow", "splash"],
+        "AtLocation": ["ocean", "river", "lake", "cup", "faucet"],
+        "Color": ["clear", "blue"]
+      }
+    },
+    "cheese": {
+      "category": "food",
+      "relations": {
+        "IsA": ["food"],
+        "Has": ["holes"],
+        "Does": ["come from milk", "melt"],
+        "AtLocation": ["kitchen", "store", "fridge", "pizza"],
+        "Color": ["yellow", "white"],
+        "Taste": ["salty", "creamy"]
+      }
+    },
+    "rice": {
+      "category": "food",
+      "relations": {
+        "IsA": ["food", "grain"],
+        "Does": ["grow in water"],
+        "AtLocation": ["kitchen", "store", "bowl"],
+        "Size": ["tiny"],
+        "Color": ["white", "brown"],
+        "Taste": ["soft"]
+      }
+    },
+    "pizza": {
+      "category": "food",
+      "relations": {
+        "IsA": ["food"],
+        "Has": ["cheese", "sauce", "a crust", "toppings"],
+        "Does": ["get baked in an oven"],
+        "AtLocation": ["kitchen", "restaurant", "box"],
+        "Shape": ["round"],
+        "Taste": ["cheesy", "warm"]
+      }
+    },
+    "strawberry": {
+      "category": "food",
+      "relations": {
+        "IsA": ["fruit", "food"],
+        "Has": ["tiny seeds", "a green top"],
+        "Does": ["grow on a plant"],
+        "AtLocation": ["garden", "store", "farm"],
+        "Size": ["small"],
+        "Color": ["red"],
+        "Taste": ["sweet", "juicy"]
+      }
+    },
+    "orange": {
+      "category": "food",
+      "relations": {
+        "IsA": ["fruit", "food"],
+        "Has": ["a peel", "seeds", "juice"],
+        "AtLocation": ["tree", "kitchen", "store"],
+        "Size": ["small"],
+        "Color": ["orange"],
+        "Taste": ["sweet", "sour", "juicy"],
+        "Shape": ["round"]
+      }
+    },
+    "juice": {
+      "category": "food",
+      "relations": {
+        "IsA": ["drink"],
+        "Does": ["come from fruit"],
+        "AtLocation": ["kitchen", "store", "fridge", "cup"],
+        "Color": ["orange", "yellow", "red"],
+        "Taste": ["sweet"]
+      }
+    },
+    "ice cream": {
+      "category": "food",
+      "relations": {
+        "IsA": ["food", "dessert"],
+        "Does": ["melt in the sun"],
+        "Has": ["a scoop"],
+        "AtLocation": ["store", "freezer", "cone", "bowl"],
+        "Taste": ["sweet", "cold"],
+        "Color": ["white", "brown", "pink"]
+      }
+    },
+    "hand": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Has": ["five fingers", "a palm", "nails"],
+        "Does": ["grab", "wave", "clap", "hold things"],
+        "AtLocation": ["arm"]
+      }
+    },
+    "eye": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Does": ["see", "blink"],
+        "Has": ["a pupil", "an eyelid", "eyelashes"],
+        "AtLocation": ["face"],
+        "Color": ["brown", "blue", "green"]
+      }
+    },
+    "nose": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Does": ["smell things", "breathe"],
+        "AtLocation": ["face"]
+      }
+    },
+    "ear": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Does": ["hear sounds"],
+        "AtLocation": ["head"]
+      }
+    },
+    "foot": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Has": ["five toes", "a heel"],
+        "Does": ["walk", "run", "kick"],
+        "AtLocation": ["leg"]
+      }
+    },
+    "mouth": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Has": ["lips", "a tongue", "teeth"],
+        "Does": ["eat", "talk", "smile", "kiss"],
+        "AtLocation": ["face"]
+      }
+    },
+    "teeth": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Does": ["chew food", "bite"],
+        "AtLocation": ["mouth"],
+        "Color": ["white"],
+        "Size": ["small"]
+      }
+    },
+    "hair": {
+      "category": "body",
+      "relations": {
+        "IsA": ["body part"],
+        "Does": ["grow on your head"],
+        "AtLocation": ["head"],
+        "Color": ["brown", "black", "blonde", "red"]
+      }
+    },
+    "car": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["four wheels", "a steering wheel", "doors", "windows", "an engine"],
+        "Does": ["drive", "go fast", "honk"],
+        "AtLocation": ["road", "garage", "parking lot"],
+        "Sound": ["vroom", "beep"],
+        "Size": ["big"],
+        "Color": ["red", "blue", "white", "black"]
+      }
+    },
+    "bus": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["many seats", "big wheels", "doors"],
+        "Does": ["carry people", "stop at bus stops"],
+        "AtLocation": ["road", "bus stop", "city"],
+        "Size": ["very big"],
+        "Color": ["yellow", "blue", "red"]
+      }
+    },
+    "airplane": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["two wings", "an engine", "wheels"],
+        "Does": ["fly", "take off", "land"],
+        "AtLocation": ["sky", "airport"],
+        "Sound": ["roar", "whoosh"],
+        "Size": ["very big"],
+        "Color": ["white", "silver"]
+      }
+    },
+    "boat": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["a sail", "a hull"],
+        "Does": ["float", "sail on water"],
+        "AtLocation": ["ocean", "lake", "river", "harbor"],
+        "Size": ["big"],
+        "Color": ["white", "blue", "red"]
+      }
+    },
+    "bicycle": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["two wheels", "handlebars", "pedals", "a seat"],
+        "Does": ["roll", "go fast"],
+        "AtLocation": ["road", "park", "sidewalk", "garage"],
+        "Size": ["medium"],
+        "Color": ["red", "blue", "green"]
+      }
+    },
+    "train": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["wheels", "tracks", "cars", "an engine"],
+        "Does": ["carry people", "go fast", "run on tracks"],
+        "AtLocation": ["tracks", "train station", "city"],
+        "Sound": ["choo-choo", "whistle"],
+        "Size": ["very big"],
+        "Color": ["red", "blue", "silver"]
+      }
+    },
+    "truck": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["big wheels", "a cab", "a trailer"],
+        "Does": ["carry heavy things", "drive on roads"],
+        "AtLocation": ["road", "highway", "parking lot"],
+        "Sound": ["honk", "rumble"],
+        "Size": ["very big"],
+        "Color": ["red", "white", "blue"]
+      }
+    },
+    "helicopter": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["blades", "a tail", "a cockpit"],
+        "Does": ["fly", "hover in the air", "land on rooftops"],
+        "AtLocation": ["sky", "airport", "helipad"],
+        "Sound": ["whir"],
+        "Size": ["big"],
+        "Color": ["red", "white", "yellow"]
+      }
+    },
+    "fire truck": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle", "emergency vehicle"],
+        "Has": ["a ladder", "a hose", "a siren", "big wheels"],
+        "Does": ["put out fires", "carry firefighters"],
+        "AtLocation": ["fire station", "road"],
+        "Sound": ["siren", "wee-woo"],
+        "Size": ["very big"],
+        "Color": ["red"]
+      }
+    },
+    "ambulance": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle", "emergency vehicle"],
+        "Has": ["a siren", "flashing lights", "a stretcher"],
+        "Does": ["carry sick people", "drive fast", "help people"],
+        "AtLocation": ["hospital", "road"],
+        "Sound": ["siren", "wee-woo"],
+        "Size": ["big"],
+        "Color": ["white", "red"]
+      }
+    },
+    "scooter": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle", "toy"],
+        "Has": ["two wheels", "handlebars", "a deck"],
+        "Does": ["roll", "glide"],
+        "AtLocation": ["sidewalk", "park", "driveway"],
+        "Size": ["small"],
+        "Color": ["red", "blue", "green"]
+      }
+    },
+    "rocket": {
+      "category": "vehicles",
+      "relations": {
+        "IsA": ["vehicle"],
+        "Has": ["an engine", "fire at the bottom", "a nose cone"],
+        "Does": ["fly to space", "blast off", "go very fast"],
+        "AtLocation": ["space", "launch pad"],
+        "Sound": ["roar", "boom"],
+        "Size": ["very big"],
+        "Color": ["white", "silver", "red"]
+      }
+    },
+    "chair": {
+      "category": "household",
+      "relations": {
+        "IsA": ["furniture"],
+        "Has": ["four legs", "a seat", "a back"],
+        "Does": ["hold people who sit"],
+        "AtLocation": ["kitchen", "living room", "classroom"],
+        "Size": ["medium"],
+        "Color": ["brown", "black", "white"]
+      }
+    },
+    "table": {
+      "category": "household",
+      "relations": {
+        "IsA": ["furniture"],
+        "Has": ["four legs", "a flat top"],
+        "Does": ["hold things on top"],
+        "AtLocation": ["kitchen", "dining room", "classroom"],
+        "Size": ["big"],
+        "Color": ["brown", "white"]
+      }
+    },
+    "bed": {
+      "category": "household",
+      "relations": {
+        "IsA": ["furniture"],
+        "Has": ["a mattress", "a pillow", "blankets"],
+        "Does": ["hold people who sleep"],
+        "AtLocation": ["bedroom"],
+        "Size": ["big"],
+        "Color": ["white", "blue"]
+      }
+    },
+    "ball": {
+      "category": "household",
+      "relations": {
+        "IsA": ["toy"],
+        "Does": ["bounce", "roll"],
+        "AtLocation": ["park", "yard", "gym"],
+        "Size": ["small", "medium"],
+        "Color": ["red", "blue", "yellow"],
+        "Shape": ["round"]
+      }
+    },
+    "book": {
+      "category": "household",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["pages", "a cover", "words", "pictures"],
+        "Does": ["tell stories"],
+        "AtLocation": ["library", "bookshelf", "school", "bedroom"]
+      }
+    },
+    "door": {
+      "category": "household",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["a handle", "hinges"],
+        "Does": ["open", "close", "keep things inside"],
+        "AtLocation": ["house", "room", "building"],
+        "Color": ["brown", "white"]
+      }
+    },
+    "window": {
+      "category": "household",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["glass"],
+        "Does": ["let light in", "let you see outside"],
+        "AtLocation": ["house", "room", "building", "car"]
+      }
+    },
+    "clock": {
+      "category": "household",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["two hands", "numbers", "a face"],
+        "Does": ["tell time", "tick"],
+        "AtLocation": ["wall", "kitchen", "classroom"],
+        "Sound": ["tick-tock"],
+        "Shape": ["round"]
+      }
+    },
+    "lamp": {
+      "category": "household",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["a shade", "a bulb"],
+        "Does": ["give light"],
+        "AtLocation": ["bedroom", "living room", "desk"],
+        "Color": ["white", "yellow"]
+      }
+    },
+    "cup": {
+      "category": "household",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["a handle"],
+        "Does": ["hold drinks"],
+        "AtLocation": ["kitchen", "table", "cupboard"],
+        "Size": ["small"],
+        "Color": ["white", "red", "blue"]
+      }
+    },
+    "mom": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person", "parent", "family member"],
+        "Does": ["take care of children", "cook", "give hugs"],
+        "Likes": ["her children", "flowers"],
+        "AtLocation": ["home", "kitchen", "work"]
+      }
+    },
+    "dad": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person", "parent", "family member"],
+        "Does": ["take care of children", "play", "give hugs"],
+        "Likes": ["his children", "sports"],
+        "AtLocation": ["home", "yard", "work"]
+      }
+    },
+    "baby": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person", "child"],
+        "Does": ["cry", "laugh", "crawl", "sleep"],
+        "Has": ["tiny hands", "tiny feet"],
+        "Likes": ["milk", "toys", "being held"],
+        "AtLocation": ["home", "crib"],
+        "Size": ["very small"]
+      }
+    },
+    "teacher": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person"],
+        "Does": ["teach", "read books to children", "help children learn"],
+        "Likes": ["books", "helping"],
+        "AtLocation": ["school", "classroom"]
+      }
+    },
+    "house": {
+      "category": "places",
+      "relations": {
+        "IsA": ["building", "place"],
+        "Has": ["a roof", "walls", "windows", "doors", "rooms"],
+        "Does": ["keep people warm and dry"],
+        "AtLocation": ["street", "neighborhood"],
+        "Size": ["big"],
+        "Color": ["white", "brown", "red"]
+      }
+    },
+    "school": {
+      "category": "places",
+      "relations": {
+        "IsA": ["building", "place"],
+        "Has": ["classrooms", "a playground", "desks", "books"],
+        "Does": ["help children learn"],
+        "AtLocation": ["city", "town", "neighborhood"]
+      }
+    },
+    "park": {
+      "category": "places",
+      "relations": {
+        "IsA": ["place"],
+        "Has": ["trees", "grass", "a playground", "benches"],
+        "Does": ["give people a place to play"],
+        "AtLocation": ["city", "town", "neighborhood"]
+      }
+    },
+    "farm": {
+      "category": "places",
+      "relations": {
+        "IsA": ["place"],
+        "Has": ["a barn", "fields", "animals", "a tractor"],
+        "Does": ["grow food"],
+        "AtLocation": ["countryside"]
+      }
+    },
+    "beach": {
+      "category": "places",
+      "relations": {
+        "IsA": ["place"],
+        "Has": ["sand", "waves", "shells", "water"],
+        "Does": ["give people a place to swim and play"],
+        "AtLocation": ["ocean", "coast"]
+      }
+    },
+    "forest": {
+      "category": "places",
+      "relations": {
+        "IsA": ["place"],
+        "Has": ["many trees", "animals", "leaves", "trails"],
+        "Does": ["give animals a home"],
+        "AtLocation": ["countryside", "mountains"]
+      }
+    },
+    "hospital": {
+      "category": "places",
+      "relations": {
+        "IsA": ["building", "place"],
+        "Has": ["doctors", "nurses", "beds", "medicine"],
+        "Does": ["help sick people get better"],
+        "AtLocation": ["city", "town"]
+      }
+    },
+    "library": {
+      "category": "places",
+      "relations": {
+        "IsA": ["building", "place"],
+        "Has": ["books", "shelves", "desks", "chairs"],
+        "Does": ["let people borrow books"],
+        "AtLocation": ["city", "town", "school"]
+      }
+    },
+    "zoo": {
+      "category": "places",
+      "relations": {
+        "IsA": ["place"],
+        "Has": ["animals", "cages", "paths", "a gift shop"],
+        "Does": ["let people see animals"],
+        "AtLocation": ["city"]
+      }
+    },
+    "store": {
+      "category": "places",
+      "relations": {
+        "IsA": ["building", "place"],
+        "Has": ["shelves", "food", "things to buy"],
+        "Does": ["sell things to people"],
+        "AtLocation": ["city", "town", "street"]
+      }
+    },
+    "mountain": {
+      "category": "places",
+      "relations": {
+        "IsA": ["place", "landform"],
+        "Has": ["rocks", "snow on top", "trees"],
+        "Does": ["rise up high"],
+        "AtLocation": ["countryside"],
+        "Size": ["very big"]
+      }
+    },
+    "river": {
+      "category": "places",
+      "relations": {
+        "IsA": ["place", "body of water"],
+        "Has": ["water", "fish", "rocks"],
+        "Does": ["flow to the sea"],
+        "AtLocation": ["countryside", "forest", "city"],
+        "Sound": ["rushing water"]
+      }
+    },
+    "sun": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["star"],
+        "Does": ["shine", "give light", "keep us warm"],
+        "AtLocation": ["sky"],
+        "Color": ["yellow", "orange"],
+        "Size": ["very big"],
+        "Shape": ["round"]
+      }
+    },
+    "rain": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Does": ["fall from clouds", "make puddles", "help plants grow"],
+        "Has": ["raindrops"],
+        "AtLocation": ["sky", "ground"],
+        "Sound": ["pitter-patter"]
+      }
+    },
+    "snow": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Does": ["fall from the sky", "cover the ground", "melt"],
+        "Has": ["snowflakes"],
+        "AtLocation": ["sky", "ground"],
+        "Color": ["white"]
+      }
+    },
+    "cloud": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Does": ["float in the sky", "bring rain"],
+        "AtLocation": ["sky"],
+        "Color": ["white", "gray"],
+        "Shape": ["fluffy"]
+      }
+    },
+    "wind": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Does": ["blow things around", "make trees sway", "fly kites"],
+        "AtLocation": ["outside"],
+        "Sound": ["whoosh"]
+      }
+    },
+    "rainbow": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Has": ["many colors"],
+        "Does": ["appear after rain", "arc across the sky"],
+        "AtLocation": ["sky"],
+        "Color": ["red", "orange", "yellow", "green", "blue", "purple"],
+        "Shape": ["arc"]
+      }
+    },
+    "thunder": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Does": ["make a loud boom", "come with lightning"],
+        "AtLocation": ["sky"],
+        "Sound": ["boom", "rumble"]
+      }
+    },
+    "lightning": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Does": ["flash in the sky", "come with thunder"],
+        "AtLocation": ["sky"],
+        "Color": ["white", "yellow"]
+      }
+    },
+    "ice": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather", "frozen water"],
+        "Does": ["form when water freezes", "melt in the sun", "make things slippery"],
+        "AtLocation": ["ground", "puddle", "pond", "freezer"],
+        "Color": ["clear", "white"]
+      }
+    },
+    "fog": {
+      "category": "weather",
+      "relations": {
+        "IsA": ["weather"],
+        "Does": ["make it hard to see", "cover the ground"],
+        "AtLocation": ["outside", "ground", "mountains"],
+        "Color": ["white", "gray"]
+      }
+    },
+    "hat": {
+      "category": "clothing",
+      "relations": {
+        "IsA": ["clothing"],
+        "Does": ["keep your head warm", "block the sun"],
+        "AtLocation": ["head", "closet", "store"],
+        "Color": ["red", "blue", "black"],
+        "Size": ["small"]
+      }
+    },
+    "shoe": {
+      "category": "clothing",
+      "relations": {
+        "IsA": ["clothing"],
+        "Has": ["a sole", "laces"],
+        "Does": ["protect your feet"],
+        "AtLocation": ["feet", "closet", "store"],
+        "Color": ["black", "white", "red", "blue"],
+        "Size": ["small"]
+      }
+    },
+    "shirt": {
+      "category": "clothing",
+      "relations": {
+        "IsA": ["clothing"],
+        "Has": ["sleeves", "buttons"],
+        "Does": ["cover your body", "keep you warm"],
+        "AtLocation": ["closet", "store", "body"],
+        "Color": ["white", "blue", "red", "green"]
+      }
+    },
+    "tree": {
+      "category": "nature",
+      "relations": {
+        "IsA": ["plant"],
+        "Has": ["a trunk", "branches", "leaves", "roots"],
+        "Does": ["grow tall", "give shade", "make oxygen"],
+        "Likes": ["water", "sunshine"],
+        "AtLocation": ["forest", "park", "yard", "garden"],
+        "Size": ["very big"],
+        "Color": ["green", "brown"]
+      }
+    },
+    "flower": {
+      "category": "nature",
+      "relations": {
+        "IsA": ["plant"],
+        "Has": ["petals", "a stem", "leaves"],
+        "Does": ["grow", "bloom", "smell nice"],
+        "Likes": ["water", "sunshine"],
+        "AtLocation": ["garden", "meadow", "vase", "park"],
+        "Color": ["red", "yellow", "pink", "purple", "white"]
+      }
+    },
+    "rock": {
+      "category": "nature",
+      "relations": {
+        "IsA": ["object"],
+        "Does": ["sit on the ground"],
+        "AtLocation": ["ground", "mountain", "river", "beach"],
+        "Size": ["small", "big"],
+        "Color": ["gray", "brown", "black"]
+      }
+    },
+    "grass": {
+      "category": "nature",
+      "relations": {
+        "IsA": ["plant"],
+        "Does": ["grow on the ground", "wave in the wind"],
+        "Likes": ["water", "sunshine"],
+        "AtLocation": ["yard", "park", "field", "meadow"],
+        "Color": ["green"]
+      }
+    },
+    "circle": {
+      "category": "shapes",
+      "relations": {
+        "IsA": ["shape"],
+        "Has": ["no corners"],
+        "Does": ["roll"],
+        "Shape": ["round"]
+      }
+    },
+    "square": {
+      "category": "shapes",
+      "relations": {
+        "IsA": ["shape"],
+        "Has": ["four sides", "four corners"],
+        "Does": ["not roll"]
+      }
+    },
+    "triangle": {
+      "category": "shapes",
+      "relations": {
+        "IsA": ["shape"],
+        "Has": ["three sides", "three corners"]
+      }
+    },
+    "star": {
+      "category": "shapes",
+      "relations": {
+        "IsA": ["shape"],
+        "Has": ["points"],
+        "AtLocation": ["sky"],
+        "Color": ["yellow", "white"]
+      }
+    },
+    "reading": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["help you learn new words", "tell you stories"],
+        "Likes": ["books", "pictures", "quiet places"],
+        "AtLocation": ["school", "library", "bedroom", "home"]
+      }
+    },
+    "drawing": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity", "art"],
+        "Does": ["make pictures", "use colors"],
+        "Likes": ["crayons", "paper", "markers"],
+        "AtLocation": ["school", "home", "art class"]
+      }
+    },
+    "painting": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity", "art"],
+        "Does": ["use paint and brushes", "make pictures"],
+        "Likes": ["bright colors", "a canvas", "paper"],
+        "AtLocation": ["school", "home", "art class"]
+      }
+    },
+    "singing": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["make music with your voice", "make people happy"],
+        "Likes": ["songs", "music"],
+        "AtLocation": ["school", "home", "car", "stage"]
+      }
+    },
+    "dancing": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["move your body to music", "make you happy"],
+        "Likes": ["music", "songs"],
+        "AtLocation": ["home", "school", "party", "stage"]
+      }
+    },
+    "cooking": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["make food", "use a stove and oven"],
+        "Likes": ["ingredients", "recipes"],
+        "AtLocation": ["kitchen", "home", "restaurant"]
+      }
+    },
+    "eating": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["give your body energy", "fill your tummy"],
+        "Likes": ["food", "snacks"],
+        "AtLocation": ["kitchen", "restaurant", "school", "dining room"]
+      }
+    },
+    "sleeping": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["rest your body", "give you energy", "help you grow"],
+        "Likes": ["a bed", "a pillow", "blankets"],
+        "AtLocation": ["bedroom", "home", "crib"]
+      }
+    },
+    "swimming": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity", "sport"],
+        "Does": ["move through water", "make you strong"],
+        "Likes": ["water", "a pool", "the ocean"],
+        "AtLocation": ["pool", "beach", "lake", "ocean"]
+      }
+    },
+    "running": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity", "sport"],
+        "Does": ["move your legs fast", "make you strong"],
+        "Likes": ["open space"],
+        "AtLocation": ["park", "yard", "playground", "track"]
+      }
+    },
+    "playing": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["make you happy", "help you learn"],
+        "Likes": ["toys", "friends", "games"],
+        "AtLocation": ["playground", "park", "home", "yard"]
+      }
+    },
+    "shopping": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["buy things you need", "pick out food"],
+        "Likes": ["stores", "a shopping cart"],
+        "AtLocation": ["store", "market", "mall"]
+      }
+    },
+    "brushing teeth": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity", "hygiene"],
+        "Does": ["clean your teeth", "keep your mouth healthy"],
+        "Likes": ["a toothbrush", "toothpaste"],
+        "AtLocation": ["bathroom", "home"]
+      }
+    },
+    "taking a bath": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity", "hygiene"],
+        "Does": ["clean your body", "make you fresh"],
+        "Likes": ["water", "soap", "bubbles"],
+        "AtLocation": ["bathroom", "home"]
+      }
+    },
+    "building": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["make things", "stack blocks", "create something new"],
+        "Likes": ["blocks", "bricks", "tools"],
+        "AtLocation": ["home", "school", "playground"]
+      }
+    },
+    "sharing": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["give something to a friend", "make others happy"],
+        "Likes": ["toys", "snacks", "friends"],
+        "AtLocation": ["school", "home", "playground"]
+      }
+    },
+    "helping": {
+      "category": "activities",
+      "relations": {
+        "IsA": ["activity"],
+        "Does": ["make things easier for someone", "make people feel good"],
+        "Likes": ["friends", "family"],
+        "AtLocation": ["home", "school", "community"]
+      }
+    },
+    "happy": {
+      "category": "emotions",
+      "relations": {
+        "IsA": ["feeling", "emotion"],
+        "Does": ["make you smile", "make you laugh"],
+        "Likes": ["playing", "hugs", "friends", "presents"]
+      }
+    },
+    "sad": {
+      "category": "emotions",
+      "relations": {
+        "IsA": ["feeling", "emotion"],
+        "Does": ["make you cry", "make your face frown"],
+        "Likes": ["hugs", "comfort"]
+      }
+    },
+    "angry": {
+      "category": "emotions",
+      "relations": {
+        "IsA": ["feeling", "emotion"],
+        "Does": ["make your face red", "make you want to yell"],
+        "Likes": ["deep breaths", "calming down"]
+      }
+    },
+    "scared": {
+      "category": "emotions",
+      "relations": {
+        "IsA": ["feeling", "emotion"],
+        "Does": ["make your heart beat fast", "make you want to hide"],
+        "Likes": ["hugs", "a safe place", "a grown-up nearby"]
+      }
+    },
+    "tired": {
+      "category": "emotions",
+      "relations": {
+        "IsA": ["feeling"],
+        "Does": ["make you yawn", "make your eyes heavy", "make you want to sleep"],
+        "Likes": ["a bed", "rest", "a nap"]
+      }
+    },
+    "hungry": {
+      "category": "emotions",
+      "relations": {
+        "IsA": ["feeling"],
+        "Does": ["make your tummy rumble", "make you want food"],
+        "Likes": ["food", "snacks", "a meal"]
+      }
+    },
+    "surprised": {
+      "category": "emotions",
+      "relations": {
+        "IsA": ["feeling", "emotion"],
+        "Does": ["make your eyes go wide", "make you gasp"],
+        "Likes": ["presents", "something unexpected"]
+      }
+    },
+    "grandma": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person", "grandparent", "family member"],
+        "Does": ["give hugs", "tell stories", "bake cookies", "spoil grandchildren"],
+        "Likes": ["her grandchildren", "baking", "knitting"],
+        "AtLocation": ["home", "kitchen"]
+      }
+    },
+    "grandpa": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person", "grandparent", "family member"],
+        "Does": ["give hugs", "tell stories", "play games"],
+        "Likes": ["his grandchildren", "fishing", "gardening"],
+        "AtLocation": ["home", "yard", "garden"]
+      }
+    },
+    "brother": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person", "sibling", "family member"],
+        "Does": ["play together", "share toys"],
+        "Likes": ["games", "playing"],
+        "AtLocation": ["home", "school"]
+      }
+    },
+    "sister": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person", "sibling", "family member"],
+        "Does": ["play together", "share toys"],
+        "Likes": ["games", "playing"],
+        "AtLocation": ["home", "school"]
+      }
+    },
+    "friend": {
+      "category": "people",
+      "relations": {
+        "IsA": ["person"],
+        "Does": ["play with you", "share", "make you happy"],
+        "Likes": ["playing", "laughing", "being together"],
+        "AtLocation": ["school", "park", "home", "playground"]
+      }
+    },
+    "teddy bear": {
+      "category": "toys",
+      "relations": {
+        "IsA": ["toy", "stuffed animal"],
+        "Has": ["soft fur", "button eyes", "a cute face"],
+        "Does": ["keep you company", "help you sleep"],
+        "Likes": ["hugs", "bedtime"],
+        "AtLocation": ["bedroom", "bed", "home"],
+        "Size": ["small"],
+        "Color": ["brown", "white", "tan"]
+      }
+    },
+    "doll": {
+      "category": "toys",
+      "relations": {
+        "IsA": ["toy"],
+        "Has": ["hair", "clothes", "eyes"],
+        "Does": ["get dressed up", "pretend to be a baby"],
+        "AtLocation": ["bedroom", "playroom", "home"],
+        "Size": ["small"]
+      }
+    },
+    "block": {
+      "category": "toys",
+      "relations": {
+        "IsA": ["toy"],
+        "Does": ["stack up", "build towers", "fall down"],
+        "AtLocation": ["playroom", "home", "school"],
+        "Size": ["small"],
+        "Color": ["red", "blue", "yellow", "green"],
+        "Shape": ["square"]
+      }
+    },
+    "puzzle": {
+      "category": "toys",
+      "relations": {
+        "IsA": ["toy", "game"],
+        "Has": ["pieces", "a picture"],
+        "Does": ["fit together", "make a picture"],
+        "AtLocation": ["home", "school", "playroom"]
+      }
+    },
+    "crayon": {
+      "category": "toys",
+      "relations": {
+        "IsA": ["art supply"],
+        "Does": ["draw on paper", "color pictures"],
+        "AtLocation": ["school", "home", "desk"],
+        "Size": ["small"],
+        "Color": ["red", "blue", "yellow", "green", "orange", "purple"]
+      }
+    },
+    "red": {
+      "category": "colors",
+      "relations": {
+        "IsA": ["color"],
+        "Does": ["look like fire", "look like strawberries"],
+        "AtLocation": ["fire truck", "apple", "strawberry", "stop sign"]
+      }
+    },
+    "blue": {
+      "category": "colors",
+      "relations": {
+        "IsA": ["color"],
+        "Does": ["look like the sky", "look like the ocean"],
+        "AtLocation": ["sky", "ocean", "blueberries"]
+      }
+    },
+    "yellow": {
+      "category": "colors",
+      "relations": {
+        "IsA": ["color"],
+        "Does": ["look like the sun", "look like a banana"],
+        "AtLocation": ["sun", "banana", "school bus", "daffodil"]
+      }
+    },
+    "green": {
+      "category": "colors",
+      "relations": {
+        "IsA": ["color"],
+        "Does": ["look like grass", "look like leaves"],
+        "AtLocation": ["grass", "trees", "frogs", "broccoli"]
+      }
+    },
+    "pink": {
+      "category": "colors",
+      "relations": {
+        "IsA": ["color"],
+        "Does": ["look like flamingos", "look like cotton candy"],
+        "AtLocation": ["flowers", "flamingos", "sunset"]
+      }
+    },
+    "purple": {
+      "category": "colors",
+      "relations": {
+        "IsA": ["color"],
+        "Does": ["look like grapes", "look like lavender"],
+        "AtLocation": ["grapes", "flowers", "eggplant"]
+      }
+    },
+    "breakfast": {
+      "category": "meals",
+      "relations": {
+        "IsA": ["meal"],
+        "Does": ["give you energy for the day", "happen in the morning"],
+        "Has": ["cereal", "toast", "fruit", "milk"],
+        "AtLocation": ["kitchen", "dining room", "home"]
+      }
+    },
+    "lunch": {
+      "category": "meals",
+      "relations": {
+        "IsA": ["meal"],
+        "Does": ["happen in the middle of the day", "give you energy"],
+        "Has": ["a sandwich", "fruit", "a drink"],
+        "AtLocation": ["school", "kitchen", "restaurant"]
+      }
+    },
+    "dinner": {
+      "category": "meals",
+      "relations": {
+        "IsA": ["meal"],
+        "Does": ["happen in the evening", "bring the family together"],
+        "Has": ["meat", "vegetables", "rice"],
+        "AtLocation": ["kitchen", "dining room", "restaurant"]
+      }
+    },
+    "snack": {
+      "category": "meals",
+      "relations": {
+        "IsA": ["meal", "food"],
+        "Does": ["fill you up between meals"],
+        "Has": ["crackers", "fruit", "cheese"],
+        "AtLocation": ["kitchen", "school", "home"]
+      }
+    },
+    "birthday": {
+      "category": "events",
+      "relations": {
+        "IsA": ["event", "celebration"],
+        "Has": ["a cake", "candles", "presents", "balloons", "friends"],
+        "Does": ["happen once a year", "make you one year older"],
+        "Likes": ["cake", "presents", "singing"],
+        "AtLocation": ["home", "park", "party"]
+      }
+    },
+    "Christmas": {
+      "category": "events",
+      "relations": {
+        "IsA": ["event", "holiday"],
+        "Has": ["a tree", "presents", "lights", "ornaments"],
+        "Does": ["happen in winter", "bring family together"],
+        "Likes": ["presents", "cookies", "songs"],
+        "AtLocation": ["home"]
+      }
+    },
+    "Halloween": {
+      "category": "events",
+      "relations": {
+        "IsA": ["event", "holiday"],
+        "Has": ["costumes", "candy", "pumpkins"],
+        "Does": ["happen in autumn", "let you dress up"],
+        "Likes": ["candy", "costumes", "trick-or-treating"],
+        "AtLocation": ["neighborhood", "home", "school"]
+      }
+    },
+    "parade": {
+      "category": "events",
+      "relations": {
+        "IsA": ["event"],
+        "Has": ["floats", "music", "people marching"],
+        "Does": ["go down the street", "play music"],
+        "AtLocation": ["street", "city", "town"]
+      }
+    },
+    "ant": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["insect"],
+        "Does": ["crawl", "carry food", "work together"],
+        "Has": ["six legs", "a tiny body", "antennae"],
+        "AtLocation": ["ground", "garden", "anthill", "picnic"],
+        "Size": ["tiny"],
+        "Color": ["black", "red"]
+      }
+    },
+    "ladybug": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["insect"],
+        "Does": ["fly", "crawl on leaves", "eat tiny bugs"],
+        "Has": ["spots", "six legs", "small wings"],
+        "AtLocation": ["garden", "leaf", "flower"],
+        "Size": ["tiny"],
+        "Color": ["red", "black"]
+      }
+    },
+    "caterpillar": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["insect"],
+        "Does": ["crawl", "eat leaves", "turn into a butterfly"],
+        "Has": ["a long body", "many legs"],
+        "AtLocation": ["garden", "leaf", "tree"],
+        "Size": ["small"],
+        "Color": ["green", "yellow", "black"]
+      }
+    },
+    "worm": {
+      "category": "animals",
+      "relations": {
+        "IsA": ["animal"],
+        "Does": ["dig in the dirt", "wiggle", "help plants grow"],
+        "Has": ["a long body", "no legs"],
+        "AtLocation": ["dirt", "garden", "ground"],
+        "Size": ["small"],
+        "Color": ["pink", "brown"]
+      }
+    },
+    "spoon": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["utensil", "tool"],
+        "Does": ["scoop food", "stir things"],
+        "AtLocation": ["kitchen", "table", "drawer"],
+        "Size": ["small"],
+        "Color": ["silver"]
+      }
+    },
+    "fork": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["utensil", "tool"],
+        "Has": ["prongs"],
+        "Does": ["poke food", "pick up food"],
+        "AtLocation": ["kitchen", "table", "drawer"],
+        "Size": ["small"],
+        "Color": ["silver"]
+      }
+    },
+    "plate": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["dish"],
+        "Does": ["hold food"],
+        "AtLocation": ["kitchen", "table", "cupboard"],
+        "Shape": ["round"],
+        "Color": ["white"],
+        "Size": ["medium"]
+      }
+    },
+    "bowl": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["dish"],
+        "Does": ["hold soup", "hold cereal"],
+        "AtLocation": ["kitchen", "table", "cupboard"],
+        "Shape": ["round"],
+        "Size": ["small"]
+      }
+    },
+    "soap": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["object"],
+        "Does": ["clean your hands", "make bubbles"],
+        "AtLocation": ["bathroom", "kitchen", "sink"],
+        "Color": ["white", "pink", "yellow"]
+      }
+    },
+    "towel": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["object"],
+        "Does": ["dry you off", "soak up water"],
+        "AtLocation": ["bathroom", "kitchen", "pool", "beach"],
+        "Color": ["white", "blue", "green"]
+      }
+    },
+    "umbrella": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["a handle"],
+        "Does": ["keep you dry in the rain"],
+        "AtLocation": ["outside", "by the door"],
+        "Color": ["red", "blue", "yellow", "black"]
+      }
+    },
+    "bag": {
+      "category": "utensils",
+      "relations": {
+        "IsA": ["object"],
+        "Has": ["a handle", "a zipper"],
+        "Does": ["hold your things", "carry stuff"],
+        "AtLocation": ["school", "store", "home"],
+        "Color": ["red", "blue", "black", "pink"]
+      }
+    },
+    "swing": {
+      "category": "playground",
+      "relations": {
+        "IsA": ["playground equipment"],
+        "Has": ["a seat", "chains", "ropes"],
+        "Does": ["go back and forth", "fly in the air"],
+        "AtLocation": ["playground", "park", "yard"]
+      }
+    },
+    "slide": {
+      "category": "playground",
+      "relations": {
+        "IsA": ["playground equipment"],
+        "Does": ["let you go down fast", "make you go wheee"],
+        "AtLocation": ["playground", "park", "water park"],
+        "Color": ["red", "yellow", "blue"]
+      }
+    },
+    "sandbox": {
+      "category": "playground",
+      "relations": {
+        "IsA": ["playground equipment"],
+        "Has": ["sand", "toys", "a bucket"],
+        "Does": ["let you dig and build"],
+        "AtLocation": ["playground", "park", "yard"]
+      }
+    },
+    "seesaw": {
+      "category": "playground",
+      "relations": {
+        "IsA": ["playground equipment"],
+        "Does": ["go up and down", "need two people"],
+        "AtLocation": ["playground", "park"]
+      }
+    },
+    "drum": {
+      "category": "music",
+      "relations": {
+        "IsA": ["instrument"],
+        "Does": ["make a beat", "make a loud sound"],
+        "AtLocation": ["music class", "home", "band"],
+        "Sound": ["boom", "tap"],
+        "Shape": ["round"]
+      }
+    },
+    "piano": {
+      "category": "music",
+      "relations": {
+        "IsA": ["instrument"],
+        "Has": ["black keys", "white keys"],
+        "Does": ["play music", "make different sounds"],
+        "AtLocation": ["home", "music class", "stage"],
+        "Size": ["big"],
+        "Color": ["black", "white"]
+      }
+    },
+    "guitar": {
+      "category": "music",
+      "relations": {
+        "IsA": ["instrument"],
+        "Has": ["strings", "a neck", "a body"],
+        "Does": ["play music", "strum"],
+        "AtLocation": ["home", "music class", "stage"],
+        "Color": ["brown", "black"]
+      }
+    },
+    "day": {
+      "category": "time",
+      "relations": {
+        "IsA": ["time"],
+        "Does": ["start when the sun comes up", "have sunshine"],
+        "Has": ["morning", "afternoon"],
+        "AtLocation": ["outside"]
+      }
+    },
+    "night": {
+      "category": "time",
+      "relations": {
+        "IsA": ["time"],
+        "Does": ["come when the sun goes down", "have darkness"],
+        "Has": ["stars", "the moon"],
+        "AtLocation": ["outside"]
+      }
+    },
+    "morning": {
+      "category": "time",
+      "relations": {
+        "IsA": ["time"],
+        "Does": ["start the day", "come after night"],
+        "Has": ["sunrise", "breakfast"],
+        "AtLocation": ["home"]
+      }
+    },
+    "bedtime": {
+      "category": "time",
+      "relations": {
+        "IsA": ["time"],
+        "Does": ["come at the end of the day", "mean it is time to sleep"],
+        "Has": ["a bedtime story", "pajamas", "brushing teeth"],
+        "AtLocation": ["bedroom", "home"]
+      }
+    }
+  }
+}
