@@ -5,8 +5,8 @@
 
 MODEL="${1:-nvidia/Gemma-4-31B-IT-NVFP4}"
 API_BASE="${2:-http://spark-farm:8000/v1}"
-COUNT="${3:-200}"
-SEEDS=(42 123 456 789 1337)
+COUNT="${3:-500}"
+SEEDS=(42 123 456 789 1337 2024 314 999 7 8888)
 
 echo "Model:    $MODEL"
 echo "API:      $API_BASE"
