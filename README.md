@@ -37,7 +37,7 @@ python -m generation.generate \
   --api-base http://localhost:8355/v1 \
   --count 200 \
   --batch-size 50 \
-  --output-dir data/generation/phase1/ \
+  --output-dir ~/data/generation/phase1/ \
   --seed 42
 ```
 
@@ -51,7 +51,7 @@ python -m generation.generate \
 | `--count` | `200` | Target accepted descriptor count |
 | `--min-per-cell` | `3` | Minimum descriptors per coverage cell |
 | `--batch-size` | `50` | Concurrent API calls |
-| `--output-dir` | `data/generation/phase1` | Output directory |
+| `--output-dir` | `~/data/generation/phase{N}` | Output directory |
 | `--seed` | `42` | Random seed |
 | `--temperature` | `0.7` | Sampling temperature |
 | `--max-tokens` | `256` | Max tokens per generation |
@@ -65,7 +65,7 @@ python -m generation.generate \
 Each run creates an isolated experiment directory:
 
 ```
-data/generation/phase1/{run-id}/
+~/data/generation/phase1/{run-id}/
     config.json     # all arguments + timestamps
     accepted.jsonl  # descriptors that passed all filters
     rejected.jsonl  # descriptors that failed, with rejection_reasons

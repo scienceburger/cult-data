@@ -32,6 +32,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import random
 import re
 import sys
@@ -742,7 +743,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         default=None,
-        help="Root output directory (default: data/generation/phase{N})",
+        help="Root output directory (default: ~/data/generation/phase{N})",
     )
     parser.add_argument(
         "--pairs-per-scene",
@@ -803,7 +804,7 @@ def main() -> None:
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
-    output_dir = args.output_dir or f"data/generation/phase{args.phase}"
+    output_dir = args.output_dir or os.path.expanduser(f"~/data/generation/phase{args.phase}")
     max_tokens = args.max_tokens
     # Default to higher token limit for phase 2 scenes.
     if args.phase == 2 and args.max_tokens == _DEFAULT_MAX_TOKENS:
