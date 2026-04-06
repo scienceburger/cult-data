@@ -89,9 +89,28 @@ Setting: {scene_type}
 Weave in these facts:
 {fact_list}\
 """,
+    "p2-scene-v3": """\
+Describe a small everyday moment for young children (age 3-5).
+
+These facts should appear naturally in the scene:
+{fact_list}
+
+If it fits, set the scene during: {scene_type}
+If that setting does not match the facts above, pick a different everyday moment where they fit naturally.
+
+Rules:
+- Write 4-10 short sentences in simple English
+- Just describe what is happening — no story, no lesson, no dialogue
+- Use present tense
+- Vary how you connect sentences
+- Do not start with "It is" or "Today is"
+- Do not use character names — use "a boy", "a girl", "the child", "mom", "grandma", etc.
+- No markdown formatting
+- Write only the scene, nothing else\
+""",
 }
 
-DEFAULT_SCENE_VERSION = "p2-scene-v2"
+DEFAULT_SCENE_VERSION = "p2-scene-v3"
 
 # ---------------------------------------------------------------------------
 # Public API

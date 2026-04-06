@@ -62,6 +62,18 @@ _MAX_API_RETRIES = 3
 _RETRY_BASE_DELAY = 1.0  # seconds
 _DEFAULT_PAIRS_PER_SCENE = 3
 
+_SYSTEM_PROMPT_PHASE1 = (
+    "You are a children's encyclopedia writer. "
+    "Write only simple, factual sentences for young children ages 3-5. "
+    "Never tell stories, use dialogue, or add markdown formatting."
+)
+
+_SYSTEM_PROMPT_PHASE2 = (
+    "You are a children's encyclopedia writer. "
+    "Describe simple everyday moments for young children ages 3-5. "
+    "Never tell stories with characters, use dialogue, or add markdown formatting."
+)
+
 
 # ---------------------------------------------------------------------------
 # Run ID and experiment directory
@@ -212,17 +224,22 @@ async def _call_api_with_retry(
     temperature: float,
     max_tokens: int,
     extra_body: dict[str, Any] | None = None,
+    system_prompt: str | None = None,
 ) -> tuple[str | None, int]:
     """Call the API with exponential-backoff retry on failure.
 
     Returns ``(text, completion_tokens)``; text is ``None`` if all retries failed.
     """
     delay = _RETRY_BASE_DELAY
+    messages: list[dict[str, str]] = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
     for attempt in range(1, _MAX_API_RETRIES + 1):
         try:
             kwargs: dict[str, Any] = {
                 "model": model,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
@@ -259,15 +276,19 @@ async def _generate_one(
     descriptor_index: int,
     prompt_version: str,
     extra_body: dict[str, Any] | None = None,
+    rng: random.Random | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int]:
     """Generate and filter one descriptor.
 
     Returns:
         ``(accepted_record, rejected_record, completion_tokens)``
     """
-    prompt = build_descriptor_prompt(noun, relation, value, version=prompt_version)
+    prompt = build_descriptor_prompt(noun, relation, value, version=prompt_version, rng=rng)
 
-    content, tokens = await _call_api_with_retry(client, model, prompt, temperature, max_tokens, extra_body=extra_body)
+    content, tokens = await _call_api_with_retry(
+        client, model, prompt, temperature, max_tokens,
+        extra_body=extra_body, system_prompt=_SYSTEM_PROMPT_PHASE1,
+    )
 
     if content is None:
         rejected = _descriptor_record(
@@ -363,7 +384,10 @@ async def _generate_one_scene(
     """
     prompt = build_scene_prompt(concept_pairs, scene_type, version=prompt_version)
 
-    content, tokens = await _call_api_with_retry(client, model, prompt, temperature, max_tokens, extra_body=extra_body)
+    content, tokens = await _call_api_with_retry(
+        client, model, prompt, temperature, max_tokens,
+        extra_body=extra_body, system_prompt=_SYSTEM_PROMPT_PHASE2,
+    )
 
     if content is None:
         rejected = _scene_record(
@@ -463,7 +487,40 @@ async def run_generation(
     concepts = load_concepts(concepts_path)
     coverage = CoverageMatrix(concepts)
 
+    # Load prior coverage and seed the minhash dedup index from previous runs.
     minhash_index = create_minhash_index()
+    prior_accepted = 0
+    prior_dir = Path(output_dir)
+    if prior_dir.is_dir():
+        for prev_run in sorted(prior_dir.iterdir()):
+            if not prev_run.is_dir():
+                continue
+            # Load coverage snapshots.
+            prev_cov = prev_run / "coverage.json"
+            if prev_cov.exists():
+                coverage.load(prev_cov)
+            # Seed minhash from previously accepted content for cross-run dedup.
+            prev_accepted = prev_run / "accepted.jsonl"
+            if prev_accepted.exists() and minhash_index is not None:
+                for line in prev_accepted.read_text(encoding="utf-8").splitlines():
+                    if not line.strip():
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        add_to_minhash_index(
+                            rec["content"],
+                            f"prior-{prior_accepted}",
+                            minhash_index,
+                        )
+                        prior_accepted += 1
+                    except (json.JSONDecodeError, KeyError):
+                        continue
+        if prior_accepted > 0:
+            logger.info(
+                "Loaded prior state: %d accepted descriptors in minhash, coverage=%s",
+                prior_accepted, coverage.summary(),
+            )
+
     stats = FilterStats()
 
     exp_dir = _experiment_dir(Path(output_dir), run_id)
@@ -526,6 +583,7 @@ async def run_generation(
                     descriptor_index=idx,
                     prompt_version=prompt_ver,
                     extra_body=extra_body,
+                    rng=rng,
                 )
 
         def _process_result(
@@ -563,29 +621,34 @@ async def run_generation(
             rejected_path.open("w", encoding="utf-8") as rej_f,
             tqdm(total=count, unit="desc", desc=run_id, dynamic_ncols=True) as bar,
         ):
-            total_to_fire = count * 3
-            batch_triples = coverage.select_next_batch(total_to_fire, min_count=min_per_cell)
+            global_idx = 0
+            while accepted_count < count:
+                remaining = count - accepted_count
+                wave_size = min(remaining * 3, batch_size * 4)
 
-            if len(batch_triples) < total_to_fire:
-                if batch_triples:
+                batch_triples = coverage.select_next_batch(wave_size, min_count=min_per_cell)
+                if not batch_triples:
+                    logger.info("All cells covered at min_per_cell=%d; stopping", min_per_cell)
+                    break
+
+                # Pad if undercovered pool is smaller than the wave.
+                if len(batch_triples) < wave_size:
                     extended: list[tuple[str, str, str]] = []
-                    while len(extended) < total_to_fire:
+                    while len(extended) < wave_size:
                         rng.shuffle(batch_triples)
                         extended.extend(batch_triples)
-                    batch_triples = extended[:total_to_fire]
-                else:
-                    logger.info("All cells already covered at min_per_cell=%d", min_per_cell)
-                    return
+                    batch_triples = extended[:wave_size]
 
-            tasks = []
-            for i, (noun, relation, value) in enumerate(batch_triples):
-                tasks.append(_bounded_generate(noun, relation, value, i))
+                tasks = []
+                for noun, relation, value in batch_triples:
+                    tasks.append(_bounded_generate(noun, relation, value, global_idx))
+                    global_idx += 1
 
-            for coro in asyncio.as_completed(tasks):
-                result = await coro
-                _process_result(result, acc_f, rej_f, bar)
-                if accepted_count >= count:
-                    break
+                for coro in asyncio.as_completed(tasks):
+                    result = await coro
+                    _process_result(result, acc_f, rej_f, bar)
+                    if accepted_count >= count:
+                        break
 
     # --- Phase 2: Scene generation ---
     else:
@@ -643,39 +706,43 @@ async def run_generation(
             rejected_path.open("w", encoding="utf-8") as rej_f,
             tqdm(total=count, unit="scene", desc=run_id, dynamic_ncols=True) as bar,
         ):
-            # Pre-build scene tasks. Each scene uses pairs_per_scene concept triples.
-            # Oversample by 3x to absorb rejections.
-            total_to_fire = count * 3
-            all_undercovered = coverage.select_next_batch(
-                total_to_fire * pairs_per_scene, min_count=min_per_cell,
-            )
+            global_scene_idx = 0
+            candidate_window = pairs_per_scene * 4
 
-            if not all_undercovered:
-                logger.info("All cells already covered at min_per_cell=%d", min_per_cell)
-                return
+            while accepted_count < count:
+                remaining = count - accepted_count
+                wave_scenes = min(remaining * 3, batch_size * 4)
 
-            # Extend if we don't have enough triples.
-            if len(all_undercovered) < total_to_fire * pairs_per_scene:
-                extended: list[tuple[str, str, str]] = []
-                while len(extended) < total_to_fire * pairs_per_scene:
-                    rng.shuffle(all_undercovered)
-                    extended.extend(all_undercovered)
-                all_undercovered = extended[: total_to_fire * pairs_per_scene]
-
-            tasks = []
-            for i in range(total_to_fire):
-                # Slice concept pairs for this scene from the pool.
-                start_idx = i * pairs_per_scene
-                candidates = all_undercovered[start_idx : start_idx + pairs_per_scene]
-                pairs = select_concept_pairs(candidates, rng, n_pairs=pairs_per_scene)
-                scene_type = select_scene_type(rng)
-                tasks.append(_bounded_generate_scene(pairs, scene_type, i))
-
-            for coro in asyncio.as_completed(tasks):
-                result = await coro
-                _process_scene_result(result, acc_f, rej_f, bar)
-                if accepted_count >= count:
+                all_undercovered = coverage.select_next_batch(
+                    wave_scenes * pairs_per_scene, min_count=min_per_cell,
+                )
+                if not all_undercovered:
+                    logger.info("All cells covered at min_per_cell=%d; stopping", min_per_cell)
                     break
+
+                if len(all_undercovered) < wave_scenes * pairs_per_scene:
+                    extended: list[tuple[str, str, str]] = []
+                    while len(extended) < wave_scenes * pairs_per_scene:
+                        rng.shuffle(all_undercovered)
+                        extended.extend(all_undercovered)
+                    all_undercovered = extended[: wave_scenes * pairs_per_scene]
+
+                tasks = []
+                for i in range(wave_scenes):
+                    start_idx = i * pairs_per_scene
+                    candidates = all_undercovered[start_idx : start_idx + candidate_window]
+                    if len(candidates) < pairs_per_scene:
+                        candidates = all_undercovered[start_idx : start_idx + pairs_per_scene]
+                    pairs = select_concept_pairs(candidates, rng, n_pairs=pairs_per_scene)
+                    scene_type = select_scene_type(rng)
+                    tasks.append(_bounded_generate_scene(pairs, scene_type, global_scene_idx))
+                    global_scene_idx += 1
+
+                for coro in asyncio.as_completed(tasks):
+                    result = await coro
+                    _process_scene_result(result, acc_f, rej_f, bar)
+                    if accepted_count >= count:
+                        break
 
     elapsed = time.monotonic() - start_time
 
@@ -726,7 +793,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--count",
         type=int,
         default=200,
-        help="Target number of accepted descriptors (default: 200)",
+        help="Target number of accepted samples (default: 200)",
     )
     parser.add_argument(
         "--min-per-cell",
@@ -767,7 +834,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--prompt-version",
         default=None,
-        help=f"Prompt template version (default: {DEFAULT_DESCRIPTOR_VERSION})",
+        help="Prompt template version (default: per-phase, p1-desc-v1 / p2-scene-v3)",
     )
     parser.add_argument(
         "--concepts",

@@ -23,7 +23,7 @@ except ImportError:
 
 _DESC_MIN_WORDS = 5
 _DESC_MAX_WORDS = 60
-_SCENE_MIN_WORDS = 40
+_SCENE_MIN_WORDS = 30
 _SCENE_MAX_WORDS = 250
 
 # Structural markers / placeholders that should not appear in clean output.
@@ -247,9 +247,19 @@ def check_concept_mention(text: str, noun: str) -> tuple[bool, Optional[str]]:
     return True, None
 
 
-def check_no_narrative(text: str) -> tuple[bool, Optional[str]]:
-    """Reject if the text contains story/narrative indicators."""
+def check_no_narrative(text: str, allow_scene_setting: bool = False) -> tuple[bool, Optional[str]]:
+    """Reject if the text contains story/narrative indicators.
+
+    Args:
+        allow_scene_setting: If True, permit "there was/were" which are
+            natural scene-setting phrases (used for Phase 2 scenes).
+    """
     for pattern in _NARRATIVE_PATTERNS:
+        if allow_scene_setting and pattern.pattern in (
+            r"(?i)\bthere was\b",
+            r"(?i)\bthere were\b",
+        ):
+            continue
         if pattern.search(text):
             return False, f"narrative:{pattern.pattern!r}"
     return True, None
@@ -340,6 +350,35 @@ def check_scene_word_count(text: str) -> tuple[bool, Optional[str]]:
     return True, None
 
 
+def check_no_names(text: str) -> tuple[bool, Optional[str]]:
+    r"""Reject if the text contains character names.
+
+    Uses a blocklist of common given names that LLMs default to. Matches
+    whole words case-insensitively via ``\b`` word boundaries.
+    """
+    # Common LLM default names and popular children's names.
+    # Lowercase for case-insensitive matching.
+    # Excludes short words that double as common English (max, grace, etc.).
+    _NAME_BLOCKLIST = {
+        # LLM favorites
+        "leo", "mia", "maya", "lily", "emma", "liam", "ella",
+        "noah", "zoe", "luna", "oliver", "sophia", "emily",
+        "james", "chloe", "lucas", "aria", "ethan", "isla",
+        "aiden", "alex", "hannah", "ryan", "sarah", "tommy",
+        "timmy", "lucy", "jake", "sophie", "charlie", "ruby",
+        "oscar", "alice", "finn", "eva", "anna", "ellie",
+        "molly", "rosie", "daisy", "milo", "theo",
+        # Extended
+        "amara", "omar", "ravi", "yuki", "amir", "suki", "davi",
+        "kofi", "priya",
+    }
+    text_lower = text.lower()
+    for name in _NAME_BLOCKLIST:
+        if re.search(r"\b" + re.escape(name) + r"\b", text_lower):
+            return False, f"character_name:{name}"
+    return True, None
+
+
 def check_concept_mentions(
     text: str, nouns: list[str],
 ) -> tuple[bool, Optional[str]]:
@@ -377,9 +416,10 @@ def run_scene_filters(
         check_scene_word_count(text),
         check_english_only(text),
         check_concept_mentions(text, nouns),
+        check_no_names(text),
         check_no_dialogue(text),
         check_no_markers(text),
-        check_no_narrative(text),
+        check_no_narrative(text, allow_scene_setting=True),
         check_near_duplicate(text, minhash_index),
     ]
 
