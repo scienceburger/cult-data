@@ -116,7 +116,7 @@ def _prep_for_location(value: str) -> str:
 _SENTENCE_STARTERS: list[str] = [
     "Start your sentences in different ways.",
     "Try starting with the fact itself, not the concept name.",
-    "Try beginning with \"Did you know\" or \"Some\" or \"Most\".",
+    "Try beginning with 'Did you know' or 'Some' or 'Most'.",
     "Try starting with where, when, or how.",
     "Begin by describing what you can see or hear.",
     "Start with what makes this special or interesting.",
@@ -133,8 +133,9 @@ Rules:
 - Write 1-3 short, simple sentences stating this fact
 - Use simple words a young child would understand
 - Do not use any narrative or storytelling
-- Do not include dialogue
-- Use present tense for general facts
+- Do not include dialogue or quoted speech
+- Do not use quotation marks of any kind, even around sounds or words
+- Use present tense
 - {variation_hint}
 - Do not use markdown formatting
 - Write only the sentences, nothing else\
@@ -150,6 +151,7 @@ Rules:
 - Use simple words a young child would understand
 - Do not use any narrative or storytelling
 - Do not include dialogue or quoted speech
+- Do not use quotation marks of any kind, even around sounds or words
 - Use present tense
 - {variation_hint}
 - Do not use markdown formatting — no asterisks, bold, or italics
@@ -162,7 +164,7 @@ Tell a young child (age 3-5) a simple fact.
 Concept: {noun}
 Fact: {fact_sentence}
 
-Write 1-3 short sentences about this fact. Use simple words. Do not tell a story. Do not use dialogue. Use present tense. No markdown. {variation_hint} Write only the sentences.\
+Write 1-3 short sentences about this fact. Use simple words. Do not tell a story. Do not use dialogue or quotation marks. Use present tense. No markdown. {variation_hint} Write only the sentences.\
 """,
 }
 

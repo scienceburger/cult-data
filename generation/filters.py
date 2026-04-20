@@ -416,7 +416,6 @@ def run_scene_filters(
         check_scene_word_count(text),
         check_english_only(text),
         check_concept_mentions(text, nouns),
-        check_no_names(text),
         check_no_dialogue(text),
         check_no_markers(text),
         check_no_narrative(text, allow_scene_setting=True),

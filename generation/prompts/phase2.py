@@ -12,6 +12,66 @@ from typing import Any
 from .phase1 import relation_to_sentence
 
 # ---------------------------------------------------------------------------
+# Child name pool — culturally diverse, gender-balanced, simple
+# ---------------------------------------------------------------------------
+
+CHILD_NAMES: list[str] = [
+    # English / British
+    "Tom", "Sam", "Kate", "Jack", "Rose", "Ben", "Amy", "Max", "Nora", "Joe",
+    "Finn", "Grace", "Will", "Nell", "Rory", "Beth", "Cal", "Dot", "Kit", "Bea",
+    # North American
+    "Avery", "River", "Sky", "Quinn", "Blake", "Casey", "Sage", "Wren", "Drew",
+    "Chase", "Morgan", "Robin", "Lane", "Rue", "Dale",
+    # Latin American / Hispanic
+    "Carlos", "Sofia", "Ana", "Diego", "Lucia", "Marco", "Valentina", "Rafael",
+    "Camila", "Mateo", "Isabela", "Tomas", "Renata", "Emilio", "Paloma",
+    "Luca", "Esperanza", "Nico", "Dulce", "Belen",
+    # Brazilian / Portuguese
+    "Davi", "Beatriz", "Gael", "Vitoria", "Enzo", "Lorena", "Murilo", "Yasmin",
+    # West African
+    "Kofi", "Amara", "Kwame", "Nia", "Seun", "Yaw", "Abena", "Kojo", "Efua",
+    "Chidi", "Ngozi", "Emeka", "Adaeze", "Tunde", "Funmi",
+    # East African
+    "Amani", "Baraka", "Imara", "Zawadi", "Jabari", "Zuri", "Kamau", "Wanjiru",
+    "Aisha", "Tariq", "Fatuma", "Hamisi",
+    # Southern African
+    "Thabo", "Lindiwe", "Sipho", "Zanele", "Bongani", "Nomsa",
+    # North African / Arab
+    "Omar", "Leila", "Nadia", "Youssef", "Hana", "Kareem", "Salma", "Tarek",
+    "Nour", "Rania", "Jad", "Lara", "Sami", "Dina",
+    # Persian / Iranian
+    "Dara", "Shirin", "Kian", "Nasrin", "Aryan", "Azadeh",
+    # Turkish
+    "Deniz", "Ece", "Berk", "Elif", "Kerem", "Ceren",
+    # South Asian / Indian
+    "Arjun", "Priya", "Rohan", "Anaya", "Leela", "Ravi", "Kavya", "Arnav",
+    "Diya", "Veer", "Meera", "Aditya", "Ishaan", "Pooja", "Kabir",
+    # Pakistani / Bangladeshi
+    "Bilal", "Zainab", "Hamza", "Fatima", "Usman", "Mehak",
+    # East Asian / Chinese
+    "Wei", "Mei", "Lin", "Fang", "Jun", "Xiao", "Lan", "Bo", "Hui", "Ping",
+    # Japanese
+    "Yuki", "Kenji", "Hana", "Riku", "Sora", "Akira", "Yuna", "Ren", "Mio",
+    # Korean
+    "Ji", "Yuna", "Seo", "Minjun", "Jia", "Dohyun", "Yejin",
+    # Southeast Asian / Vietnamese
+    "Linh", "Minh", "Tuan", "Ngoc", "Khanh", "Thu",
+    # Filipino
+    "Bea", "Carlo", "Pia", "Niko", "Lena", "Rico",
+    # Thai / Indonesian / Malay
+    "Chai", "Nong", "Dian", "Rizky", "Sari", "Nurul",
+    # Eastern European / Slavic
+    "Marta", "Ivan", "Anya", "Luka", "Vera", "Toma", "Mila", "Borya",
+    "Katya", "Pavel", "Zoya", "Danila", "Nadya",
+    # Scandinavian / Nordic
+    "Elsa", "Erik", "Astrid", "Lars", "Sigrid", "Bjorn", "Inga", "Leif",
+    # Mediterranean / Southern European
+    "Marco", "Giulia", "Nikos", "Elena", "Mateus", "Ines", "Adria",
+    # Indigenous / First Nations
+    "Kaya", "Tala", "Ama", "Nuka", "Siku", "Pita",
+]
+
+# ---------------------------------------------------------------------------
 # Scene types — everyday routines a young child would recognize
 # ---------------------------------------------------------------------------
 
@@ -57,6 +117,7 @@ _SCENE_TEMPLATES: dict[str, str] = {
 Write a short everyday scene for young children (ages 3-5).
 
 Scene type: {scene_type}
+The child in the scene is named {child_name}.
 Include these facts naturally in the scene:
 {fact_list}
 
@@ -85,12 +146,15 @@ Rules:
 - No markdown formatting
 - Write only the scene, nothing else
 
+The child's name is {child_name}.
 Setting: {scene_type}
 Weave in these facts:
 {fact_list}\
 """,
     "p2-scene-v3": """\
 Describe a small everyday moment for young children (age 3-5).
+
+The child's name is {child_name}.
 
 These facts should appear naturally in the scene:
 {fact_list}
@@ -104,7 +168,6 @@ Rules:
 - Use present tense
 - Vary how you connect sentences
 - Do not start with "It is" or "Today is"
-- Do not use character names — use "a boy", "a girl", "the child", "mom", "grandma", etc.
 - No markdown formatting
 - Write only the scene, nothing else\
 """,
@@ -135,6 +198,7 @@ def get_scene_template(version: str | None = None) -> tuple[str, str]:
 def build_scene_prompt(
     concept_pairs: list[tuple[str, str, str]],
     scene_type: str,
+    child_name: str,
     version: str | None = None,
 ) -> str:
     """Build a scene prompt from a list of (noun, relation, value) triples.
@@ -142,6 +206,7 @@ def build_scene_prompt(
     Args:
         concept_pairs: 2-4 (noun, relation, value) triples to exercise.
         scene_type: The everyday routine/scene type.
+        child_name: Name to use for the child character in the scene.
         version: Prompt template version.
 
     Returns:
@@ -153,12 +218,17 @@ def build_scene_prompt(
         fact_sentence = relation_to_sentence(noun, relation, value)
         fact_lines.append(f"- {fact_sentence}")
     fact_list = "\n".join(fact_lines)
-    return template.format(scene_type=scene_type, fact_list=fact_list)
+    return template.format(scene_type=scene_type, fact_list=fact_list, child_name=child_name)
 
 
 def select_scene_type(rng: random.Random) -> str:
     """Pick a random scene type."""
     return rng.choice(SCENE_TYPES)
+
+
+def select_child_name(rng: random.Random) -> str:
+    """Pick a random child name from the diverse name pool."""
+    return rng.choice(CHILD_NAMES)
 
 
 def select_concept_pairs(

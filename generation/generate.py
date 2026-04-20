@@ -47,7 +47,7 @@ from tqdm import tqdm
 from .coverage import CoverageMatrix, load_concepts
 from .filters import FilterStats, add_to_minhash_index, create_minhash_index, run_descriptor_filters, run_scene_filters
 from .prompts.phase1 import DEFAULT_DESCRIPTOR_VERSION, build_descriptor_prompt, get_descriptor_template
-from .prompts.phase2 import DEFAULT_SCENE_VERSION, build_scene_prompt, get_scene_template, select_concept_pairs, select_scene_type
+from .prompts.phase2 import DEFAULT_SCENE_VERSION, build_scene_prompt, get_scene_template, select_child_name, select_concept_pairs, select_scene_type
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ _DEFAULT_MAX_TOKENS_PHASE2 = 512
 _MAX_API_RETRIES = 3
 _RETRY_BASE_DELAY = 1.0  # seconds
 _DEFAULT_PAIRS_PER_SCENE = 3
+_MAX_RETRIES_PER_CELL = 4  # max repeats per undercovered cell per wave (avoids near-dup spam)
 
 _SYSTEM_PROMPT_PHASE1 = (
     "You are a children's encyclopedia writer. "
@@ -340,6 +341,7 @@ def _scene_record(
     model: str,
     concept_pairs: list[tuple[str, str, str]],
     scene_type: str,
+    child_name: str,
     run_id: str,
     prompt_version: str,
     filters_passed: bool,
@@ -354,6 +356,7 @@ def _scene_record(
             {"noun": n, "relation": r, "value": v} for n, r, v in concept_pairs
         ],
         "scene_type": scene_type,
+        "child_name": child_name,
         "prompt_template_version": prompt_version,
         "run_id": run_id,
         "timestamp": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -369,6 +372,7 @@ async def _generate_one_scene(
     model: str,
     concept_pairs: list[tuple[str, str, str]],
     scene_type: str,
+    child_name: str,
     run_id: str,
     temperature: float,
     max_tokens: int,
@@ -382,7 +386,7 @@ async def _generate_one_scene(
     Returns:
         ``(accepted_record, rejected_record, completion_tokens)``
     """
-    prompt = build_scene_prompt(concept_pairs, scene_type, version=prompt_version)
+    prompt = build_scene_prompt(concept_pairs, scene_type, child_name=child_name, version=prompt_version)
 
     content, tokens = await _call_api_with_retry(
         client, model, prompt, temperature, max_tokens,
@@ -395,6 +399,7 @@ async def _generate_one_scene(
             model=model,
             concept_pairs=concept_pairs,
             scene_type=scene_type,
+            child_name=child_name,
             run_id=run_id,
             prompt_version=prompt_version,
             filters_passed=False,
@@ -412,6 +417,7 @@ async def _generate_one_scene(
             model=model,
             concept_pairs=concept_pairs,
             scene_type=scene_type,
+            child_name=child_name,
             run_id=run_id,
             prompt_version=prompt_version,
             filters_passed=True,
@@ -423,6 +429,7 @@ async def _generate_one_scene(
             model=model,
             concept_pairs=concept_pairs,
             scene_type=scene_type,
+            child_name=child_name,
             run_id=run_id,
             prompt_version=prompt_version,
             filters_passed=False,
@@ -610,6 +617,7 @@ async def run_generation(
             if total_generated % batch_size == 0:
                 elapsed = time.monotonic() - start_time
                 bar.set_postfix(
+                    depth=min_per_cell,
                     desc_s=f"{total_generated / elapsed:.1f}" if elapsed > 0 else "0.0",
                     tok_s=f"{total_tokens / elapsed:.0f}" if elapsed > 0 else "0",
                     pass_rate=f"{stats.pass_rate:.1%}",
@@ -627,17 +635,20 @@ async def run_generation(
                 wave_size = min(remaining * 3, batch_size * 4)
 
                 batch_triples = coverage.select_next_batch(wave_size, min_count=min_per_cell)
-                if not batch_triples:
-                    logger.info("All cells covered at min_per_cell=%d; stopping", min_per_cell)
-                    break
+                while not batch_triples:
+                    min_per_cell += 1
+                    logger.info("All cells covered; escalating min_per_cell to %d", min_per_cell)
+                    batch_triples = coverage.select_next_batch(wave_size, min_count=min_per_cell)
 
                 # Pad if undercovered pool is smaller than the wave.
                 if len(batch_triples) < wave_size:
+                    # Cap repeats per cell to avoid near-duplicate spam for hard cells.
+                    effective_wave = min(wave_size, len(batch_triples) * _MAX_RETRIES_PER_CELL)
                     extended: list[tuple[str, str, str]] = []
-                    while len(extended) < wave_size:
+                    while len(extended) < effective_wave:
                         rng.shuffle(batch_triples)
                         extended.extend(batch_triples)
-                    batch_triples = extended[:wave_size]
+                    batch_triples = extended[:effective_wave]
 
                 tasks = []
                 for noun, relation, value in batch_triples:
@@ -653,7 +664,7 @@ async def run_generation(
     # --- Phase 2: Scene generation ---
     else:
         async def _bounded_generate_scene(
-            pairs: list[tuple[str, str, str]], scene_type: str, idx: int,
+            pairs: list[tuple[str, str, str]], scene_type: str, child_name: str, idx: int,
         ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, int]:
             async with sem:
                 return await _generate_one_scene(
@@ -661,6 +672,7 @@ async def run_generation(
                     model=model,
                     concept_pairs=pairs,
                     scene_type=scene_type,
+                    child_name=child_name,
                     run_id=run_id,
                     temperature=temperature,
                     max_tokens=max_tokens,
@@ -695,6 +707,7 @@ async def run_generation(
             if total_generated % batch_size == 0:
                 elapsed = time.monotonic() - start_time
                 bar.set_postfix(
+                    depth=min_per_cell,
                     scene_s=f"{total_generated / elapsed:.1f}" if elapsed > 0 else "0.0",
                     tok_s=f"{total_tokens / elapsed:.0f}" if elapsed > 0 else "0",
                     pass_rate=f"{stats.pass_rate:.1%}",
@@ -716,16 +729,27 @@ async def run_generation(
                 all_undercovered = coverage.select_next_batch(
                     wave_scenes * pairs_per_scene, min_count=min_per_cell,
                 )
-                if not all_undercovered:
-                    logger.info("All cells covered at min_per_cell=%d; stopping", min_per_cell)
-                    break
+                while not all_undercovered:
+                    min_per_cell += 1
+                    logger.info("All cells covered; escalating min_per_cell to %d", min_per_cell)
+                    all_undercovered = coverage.select_next_batch(
+                        wave_scenes * pairs_per_scene, min_count=min_per_cell,
+                    )
 
                 if len(all_undercovered) < wave_scenes * pairs_per_scene:
+                    # Cap repeats per cell to avoid near-duplicate spam for hard cells.
+                    effective_total = min(
+                        wave_scenes * pairs_per_scene,
+                        len(all_undercovered) * _MAX_RETRIES_PER_CELL,
+                    )
+                    # Align to pairs_per_scene so every scene gets a full set of pairs.
+                    wave_scenes = max(1, effective_total // pairs_per_scene)
+                    effective_total = wave_scenes * pairs_per_scene
                     extended: list[tuple[str, str, str]] = []
-                    while len(extended) < wave_scenes * pairs_per_scene:
+                    while len(extended) < effective_total:
                         rng.shuffle(all_undercovered)
                         extended.extend(all_undercovered)
-                    all_undercovered = extended[: wave_scenes * pairs_per_scene]
+                    all_undercovered = extended[:effective_total]
 
                 tasks = []
                 for i in range(wave_scenes):
@@ -735,7 +759,8 @@ async def run_generation(
                         candidates = all_undercovered[start_idx : start_idx + pairs_per_scene]
                     pairs = select_concept_pairs(candidates, rng, n_pairs=pairs_per_scene)
                     scene_type = select_scene_type(rng)
-                    tasks.append(_bounded_generate_scene(pairs, scene_type, global_scene_idx))
+                    child_name = select_child_name(rng)
+                    tasks.append(_bounded_generate_scene(pairs, scene_type, child_name, global_scene_idx))
                     global_scene_idx += 1
 
                 for coro in asyncio.as_completed(tasks):
@@ -871,7 +896,13 @@ def main() -> None:
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
-    output_dir = args.output_dir or os.path.expanduser(f"~/data/generation/phase{args.phase}")
+    if args.output_dir:
+        output_dir = args.output_dir
+    else:
+        concepts_path = Path(args.concepts) if args.concepts else None
+        _concepts_meta = load_concepts(concepts_path)
+        _version = _concepts_meta.get("metadata", {}).get("version", "unknown")
+        output_dir = os.path.expanduser(f"~/data/generation/v{_version}/phase{args.phase}")
     max_tokens = args.max_tokens
     # Default to higher token limit for phase 2 scenes.
     if args.phase == 2 and args.max_tokens == _DEFAULT_MAX_TOKENS:

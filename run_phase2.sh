@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Run multiple phase 1 passes with different seeds.
-# Usage: ./run_phase1.sh [--model MODEL] [--api-base API_BASE] [--count COUNT] [--num-runs NUM_RUNS] [--output-dir OUTPUT_DIR]
+# Run multiple phase 2 passes with different seeds.
+# Usage: ./run_phase2.sh [--model MODEL] [--api-base API_BASE] [--count COUNT] [--num-runs NUM_RUNS] [--output-dir OUTPUT_DIR]
 # Defaults to the Gemma model on spark-farm.
 
 # Default values
 # Switch to 31B for higher quality: MODEL="nvidia/Gemma-4-31B-IT-NVFP4"
 MODEL="google/gemma-4-E4B-IT"
 API_BASE="http://spark-farm:8000/v1"
-COUNT=1000
+COUNT=500
 NUM_RUNS=5
 OUTPUT_DIR=""  # empty = derive from concepts.json version at runtime
 
@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: ./run_phase1.sh [--model MODEL] [--api-base API_BASE] [--count COUNT] [--num-runs NUM_RUNS] [--output-dir OUTPUT_DIR]"
+      echo "Usage: ./run_phase2.sh [--model MODEL] [--api-base API_BASE] [--count COUNT] [--num-runs NUM_RUNS] [--output-dir OUTPUT_DIR]"
       exit 1
       ;;
   esac
@@ -58,10 +58,11 @@ for SEED in "${SEEDS[@]}"; do
   OUTPUT_ARGS=()
   [[ -n "$OUTPUT_DIR" ]] && OUTPUT_ARGS=(--output-dir "$OUTPUT_DIR")
   uv run python -m generation.generate \
+    --phase 2 \
     --model "$MODEL" \
     --api-base "$API_BASE" \
     --count "$COUNT" \
-    --batch-size 256 \
+    --batch-size 128 \
     --seed "$SEED" \
     "${OUTPUT_ARGS[@]}"
   echo "Done seed=$SEED"
